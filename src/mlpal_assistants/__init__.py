@@ -65,6 +65,7 @@ from mlpal_assistants.exceptions import (
     UnsupportedCapabilityError,
     ValidationError,
 )
+from mlpal_assistants.transport.streaming import ChatStream, ChatStreamDelta
 from mlpal_assistants.types import (
     AudioResponse,
     ChatResponse,
@@ -105,6 +106,9 @@ __all__ = [
     "ToolCall",
     "FunctionCall",
     "Turn",
+    # Streaming
+    "ChatStream",
+    "ChatStreamDelta",
     # Common types
     "TokenUsage",
     "CostInfo",

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 import httpx
 
@@ -17,6 +18,7 @@ from mlpal_assistants.exceptions import (
     ServerError,
     TimeoutError,
 )
+from mlpal_assistants.transport.streaming import ChatStream
 
 if TYPE_CHECKING:
     from mlpal_assistants.config import Config
@@ -173,6 +175,46 @@ class HTTPTransport:
             raise ServerError(message or "Server error", **error_kwargs)
         else:
             raise AssistantsError(f"HTTP {status}: {message}", **error_kwargs)
+
+    @asynccontextmanager
+    async def stream_post(
+        self,
+        path: str,
+        *,
+        body: dict[str, Any] | None = None,
+        timeout: float | None = None,
+    ) -> AsyncIterator[ChatStream]:
+        """
+        POST request with streaming response.
+
+        Returns a ChatStream that can be iterated for deltas.
+
+        Example:
+            async with transport.stream_post("/v1/chat/completions", body=request) as stream:
+                async for delta in stream:
+                    print(delta.content, end="")
+        """
+        request_timeout = timeout or self._config.timeout
+
+        try:
+            async with self._client.stream(
+                "POST",
+                path,
+                json=body,
+                timeout=httpx.Timeout(request_timeout, read=None),  # No read timeout for streaming
+            ) as response:
+                # Check for errors before streaming
+                if not response.is_success:
+                    # Read response body for error message
+                    await response.aread()
+                    self._raise_for_status(response)
+
+                yield ChatStream(response)
+
+        except httpx.TimeoutException as e:
+            raise TimeoutError(f"Request timed out: {e}") from e
+        except httpx.ConnectError as e:
+            raise ConnectionError(f"Connection failed: {e}") from e
 
     async def close(self) -> None:
         """Close HTTP client and release connections."""

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Callable
+from typing import TYPE_CHECKING, Any, AsyncIterator, BinaryIO, Callable
 
 from pydantic import BaseModel
 
@@ -17,6 +18,7 @@ from mlpal_assistants.models.responses import (
 )
 from mlpal_assistants.services import AudioService, ChatService, EmbeddingService, ImageService
 from mlpal_assistants.transport import HTTPTransport
+from mlpal_assistants.transport.streaming import ChatStream
 
 if TYPE_CHECKING:
     from mlpal_assistants.models.messages import Message
@@ -135,6 +137,65 @@ class Assistants:
             parallel_tool_calls=parallel_tool_calls,
             max_turns=max_turns,
         )
+
+    @asynccontextmanager
+    async def stream_chat(
+        self,
+        messages: list[Message | dict[str, Any]],
+        *,
+        model: str = "mlpal",
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
+        stop: list[str] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        parallel_tool_calls: bool | None = None,
+    ) -> AsyncIterator[ChatStream]:
+        """
+        Stream a chat completion.
+
+        Yields deltas as they arrive from the server.
+
+        Note: Streaming does not support automatic tool execution with ToolRegistry.
+        For agentic workflows, use `chat()` with `tools` parameter instead.
+
+        Args:
+            messages: Conversation messages
+            model: Model identifier
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
+            top_p: Nucleus sampling parameter
+            stop: Stop sequences
+            tools: Raw tool definitions (list[dict] only, no auto-execution)
+            tool_choice: Tool selection mode
+            parallel_tool_calls: Allow parallel tool calls
+
+        Yields:
+            ChatStream that yields ChatStreamDelta objects
+
+        Example:
+            async with assistant.stream_chat(
+                messages=[{"role": "user", "content": "Tell me a story"}],
+                model="gpt-4o"
+            ) as stream:
+                async for delta in stream:
+                    if delta.content:
+                        print(delta.content, end="", flush=True)
+                print()
+        """
+        async with self._chat.stream(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            stop=stop,
+            tools=tools,
+            tool_choice=tool_choice,
+            parallel_tool_calls=parallel_tool_calls,
+        ) as stream:
+            yield stream
 
     async def embed(
         self,

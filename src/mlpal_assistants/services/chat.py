@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
 
 from pydantic import BaseModel
 
@@ -10,6 +11,7 @@ from mlpal_assistants.models.messages import normalize_messages
 from mlpal_assistants.models.requests import ChatRequest
 from mlpal_assistants.models.responses import ChatResponse
 from mlpal_assistants.services._base import BaseService
+from mlpal_assistants.transport.streaming import ChatStream
 
 if TYPE_CHECKING:
     from mlpal_assistants.models.messages import Message
@@ -271,3 +273,73 @@ class ChatService(BaseService):
                 result[key] = [self._make_strict_schema(s) for s in result[key]]
 
         return result
+
+    @asynccontextmanager
+    async def stream(
+        self,
+        model: str,
+        messages: list[Message | dict[str, Any]],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
+        stop: list[str] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        parallel_tool_calls: bool | None = None,
+    ) -> AsyncIterator[ChatStream]:
+        """
+        Stream a chat completion.
+
+        Yields deltas as they arrive from the server.
+
+        Note: Streaming does not support automatic tool execution.
+        Use `complete()` with ToolRegistry for agentic workflows.
+
+        Args:
+            model: Model identifier
+            messages: Conversation messages
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
+            top_p: Nucleus sampling parameter
+            stop: Stop sequences
+            tools: Raw tool definitions (no auto-execution in streaming)
+            tool_choice: Tool choice mode
+            parallel_tool_calls: Allow parallel tool calls
+
+        Yields:
+            ChatStream that yields ChatStreamDelta objects
+
+        Example:
+            async with service.stream("gpt-4o", messages) as stream:
+                async for delta in stream:
+                    if delta.content:
+                        print(delta.content, end="", flush=True)
+        """
+        body: dict[str, Any] = {
+            "model": model,
+            "messages": normalize_messages(messages),
+            "stream": True,
+        }
+
+        if temperature is not None:
+            body["temperature"] = temperature
+        if max_tokens is not None:
+            body["max_tokens"] = max_tokens
+        if top_p is not None:
+            body["top_p"] = top_p
+        if stop is not None:
+            body["stop"] = stop
+        if tools is not None:
+            body["tools"] = tools
+        if tool_choice is not None:
+            body["tool_choice"] = tool_choice
+        if parallel_tool_calls is not None:
+            body["parallel_tool_calls"] = parallel_tool_calls
+
+        # Validate request (stream=True is extra, so skip validation for it)
+        validate_body = {k: v for k, v in body.items() if k != "stream"}
+        ChatRequest.model_validate(validate_body)
+
+        async with self._transport.stream_post("/v1/chat/completions", body=body) as stream:
+            yield stream
