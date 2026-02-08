@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from pydantic import BaseModel
 
@@ -14,17 +13,95 @@ from mlpal_assistants.services._base import BaseService
 
 if TYPE_CHECKING:
     from mlpal_assistants.models.messages import Message
+    from mlpal_assistants.tools.registry import ToolRegistry
 
 
 class ChatService(BaseService):
     """
     Chat completion service.
 
-    Single responsibility: Transform user parameters into API requests
-    and API responses into domain objects.
+    Handles:
+    - Simple chat completions
+    - Structured output (Pydantic models)
+    - Tool definitions (for model to request)
+    - Automatic tool execution (with ToolRegistry)
     """
 
     async def complete(
+        self,
+        model: str,
+        messages: list[Message | dict[str, Any]],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
+        stop: list[str] | None = None,
+        response_format: type[BaseModel] | dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | ToolRegistry | dict[str, Callable[..., Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        parallel_tool_calls: bool | None = None,
+        max_turns: int = 10,
+    ) -> ChatResponse:
+        """
+        Create a chat completion.
+
+        Args:
+            model: Model identifier (e.g., "gpt-4o", "claude-sonnet")
+            messages: Conversation messages
+            temperature: Sampling temperature (0-2)
+            max_tokens: Maximum tokens to generate
+            top_p: Nucleus sampling parameter
+            stop: Stop sequences
+            response_format: Pydantic model for structured output, or schema dict
+            tools: Tool definitions - can be:
+                - list[dict]: Raw OpenAI-format tool definitions (no auto-execution)
+                - ToolRegistry: Registry with auto-execution
+                - dict[str, Callable]: Dict of name->function (auto-converted to registry)
+            tool_choice: How to select tools ("auto", "none", or specific)
+            parallel_tool_calls: Allow parallel tool calls
+            max_turns: Max turns for agentic tool execution (only with ToolRegistry)
+
+        Returns:
+            ChatResponse with content, cost, routing, and optional structured data
+        """
+        # Convert tools to appropriate format
+        tool_registry: ToolRegistry | None = None
+        tool_definitions: list[dict[str, Any]] | None = None
+
+        if tools is not None:
+            tool_registry, tool_definitions = self._prepare_tools(tools)
+
+        # If we have a registry, use the agent loop for automatic execution
+        if tool_registry is not None:
+            return await self._complete_with_tools(
+                model=model,
+                messages=messages,
+                tool_registry=tool_registry,
+                max_turns=max_turns,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=top_p,
+                stop=stop,
+                response_format=response_format,
+                tool_choice=tool_choice,
+                parallel_tool_calls=parallel_tool_calls,
+            )
+
+        # Single completion (no auto-execution)
+        return await self._complete_single(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            stop=stop,
+            response_format=response_format,
+            tools=tool_definitions,
+            tool_choice=tool_choice,
+            parallel_tool_calls=parallel_tool_calls,
+        )
+
+    async def _complete_single(
         self,
         model: str,
         messages: list[Message | dict[str, Any]],
@@ -38,25 +115,7 @@ class ChatService(BaseService):
         tool_choice: str | dict[str, Any] | None = None,
         parallel_tool_calls: bool | None = None,
     ) -> ChatResponse:
-        """
-        Create a chat completion.
-
-        Args:
-            model: Model identifier (e.g., "gpt-4o", "claude-sonnet")
-            messages: Conversation messages
-            temperature: Sampling temperature (0-2)
-            max_tokens: Maximum tokens to generate
-            top_p: Nucleus sampling parameter
-            stop: Stop sequences
-            response_format: Pydantic model for structured output, or schema dict
-            tools: Tool definitions for function calling
-            tool_choice: How to select tools ("auto", "none", or specific)
-            parallel_tool_calls: Allow parallel tool calls
-
-        Returns:
-            ChatResponse with content, cost, routing, and optional structured data
-        """
-        # Build request body
+        """Single chat completion without automatic tool execution."""
         body: dict[str, Any] = {
             "model": model,
             "messages": normalize_messages(messages),
@@ -102,6 +161,72 @@ class ChatService(BaseService):
 
         return ChatResponse.from_api(data, parsed_data=parsed_data)
 
+    async def _complete_with_tools(
+        self,
+        model: str,
+        messages: list[Message | dict[str, Any]],
+        tool_registry: ToolRegistry,
+        max_turns: int,
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
+        stop: list[str] | None = None,
+        response_format: type[BaseModel] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        parallel_tool_calls: bool | None = None,
+    ) -> ChatResponse:
+        """Chat completion with automatic tool execution."""
+        from mlpal_assistants.tools.loop import AgentLoop
+
+        loop = AgentLoop(
+            transport=self._transport,
+            tools=tool_registry,
+            max_turns=max_turns,
+            parallel_tool_calls=parallel_tool_calls if parallel_tool_calls is not None else True,
+        )
+
+        return await loop.run(
+            messages=normalize_messages(messages),
+            model=model,
+            response_format=response_format,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            stop=stop,
+            tool_choice=tool_choice,
+        )
+
+    def _prepare_tools(
+        self,
+        tools: list[dict[str, Any]] | ToolRegistry | dict[str, Callable[..., Any]],
+    ) -> tuple[ToolRegistry | None, list[dict[str, Any]] | None]:
+        """
+        Prepare tools for use.
+
+        Returns:
+            (registry, definitions) - registry is set for auto-execution,
+            definitions for pass-through to API
+        """
+        from mlpal_assistants.tools.registry import ToolRegistry
+
+        # Already a registry - use for auto-execution
+        if isinstance(tools, ToolRegistry):
+            return tools, None
+
+        # Dict of callables - convert to registry
+        if isinstance(tools, dict):
+            # Check if it's a dict of callables
+            if tools and callable(next(iter(tools.values()))):
+                registry = ToolRegistry.from_dict(tools)
+                return registry, None
+
+        # List of dicts - pass through as definitions (no auto-execution)
+        if isinstance(tools, list):
+            return None, tools
+
+        return None, None
+
     def _build_json_schema(self, model: type[BaseModel]) -> dict[str, Any]:
         """Build JSON schema response format from Pydantic model."""
         schema = model.model_json_schema()
@@ -127,24 +252,20 @@ class ChatService(BaseService):
         if result.get("type") == "object":
             result["additionalProperties"] = False
 
-            # Process properties
             if "properties" in result:
                 result["properties"] = {
                     k: self._make_strict_schema(v)
                     for k, v in result["properties"].items()
                 }
 
-        # Process nested definitions ($defs)
         if "$defs" in result:
             result["$defs"] = {
                 k: self._make_strict_schema(v) for k, v in result["$defs"].items()
             }
 
-        # Process array items
         if "items" in result:
             result["items"] = self._make_strict_schema(result["items"])
 
-        # Process anyOf/oneOf/allOf
         for key in ("anyOf", "oneOf", "allOf"):
             if key in result:
                 result[key] = [self._make_strict_schema(s) for s in result[key]]

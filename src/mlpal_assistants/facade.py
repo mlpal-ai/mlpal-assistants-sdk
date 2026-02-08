@@ -20,6 +20,7 @@ from mlpal_assistants.transport import HTTPTransport
 
 if TYPE_CHECKING:
     from mlpal_assistants.models.messages import Message
+    from mlpal_assistants.tools.registry import ToolRegistry
 
 
 class Assistants:
@@ -78,27 +79,48 @@ class Assistants:
         top_p: float | None = None,
         stop: list[str] | None = None,
         response_format: type[BaseModel] | dict[str, Any] | None = None,
-        tools: list[dict[str, Any]] | None = None,
+        tools: list[dict[str, Any]] | ToolRegistry | dict[str, Callable[..., Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
         parallel_tool_calls: bool | None = None,
+        max_turns: int = 10,
     ) -> ChatResponse:
         """
         Create a chat completion.
 
         Args:
-            model: Model identifier (e.g., "gpt-4o", "claude-sonnet", "mlpal")
             messages: Conversation messages
+            model: Model identifier (e.g., "gpt-4o", "claude-sonnet", "mlpal")
             temperature: Sampling temperature (0-2)
             max_tokens: Maximum tokens to generate
             top_p: Nucleus sampling parameter
             stop: Stop sequences
             response_format: Pydantic model for structured output
-            tools: Tool definitions for function calling
+            tools: Tool definitions - can be:
+                - list[dict]: Raw OpenAI-format tool definitions (no auto-execution)
+                - ToolRegistry: Registry with auto-execution
+                - dict[str, Callable]: Dict of name->function (auto-converted to registry)
             tool_choice: Tool selection mode
             parallel_tool_calls: Allow parallel tool calls
+            max_turns: Max turns for agentic tool execution (only with ToolRegistry)
 
         Returns:
             ChatResponse with content, cost, routing, and optional structured data
+
+        Example:
+            # Simple chat
+            response = await assistant.chat(
+                messages=[{"role": "user", "content": "Hello!"}]
+            )
+
+            # With automatic tool execution
+            def get_weather(city: str) -> str:
+                '''Get weather for a city.'''
+                return f"Sunny in {city}"
+
+            response = await assistant.chat(
+                messages=[{"role": "user", "content": "Weather in Paris?"}],
+                tools={"get_weather": get_weather},
+            )
         """
         return await self._chat.complete(
             model=model,
@@ -111,6 +133,7 @@ class Assistants:
             tools=tools,
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
+            max_turns=max_turns,
         )
 
     async def embed(

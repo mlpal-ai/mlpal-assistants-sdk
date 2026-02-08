@@ -1223,17 +1223,61 @@ AssistantsError (base)
 - Structured output (Pydantic models → JSON Schema → parsed response)
 - Embeddings (single and batch)
 
-### Phase 2: Tool Execution
+### Phase 2: Tool Execution ✅ COMPLETE
 
 **Goal:** Clean tool execution with proper separation.
 
-**Tasks:**
-1. Implement `ToolRegistry` (tools/registry.py)
-2. Implement `ToolExecutor` (tools/executor.py)
-3. Implement `AgentLoop` (tools/loop.py)
-4. Implement schema generation (tools/schema.py)
-5. Integrate with `ChatService`
-6. Add tool-specific tests
+**Status:** Completed on 2026-02-08
+
+**Implemented:**
+1. ✅ `ToolRegistry` (tools/registry.py) - ~200 lines
+   - Register tools with `register()` or `@tools.tool` decorator
+   - Create from dict with `ToolRegistry.from_dict()`
+   - Auto-generate JSON Schema from Python functions
+   - Convert to OpenAI-format tool definitions
+
+2. ✅ `ToolExecutor` (tools/executor.py) - ~150 lines
+   - Execute tool calls with validation
+   - Support sync and async functions
+   - Timeout protection
+   - Parallel execution support
+
+3. ✅ `AgentLoop` (tools/loop.py) - ~180 lines
+   - Multi-turn orchestration
+   - Automatic tool execution
+   - Turn history tracking
+   - Max turns protection
+
+4. ✅ Schema generation (tools/schema.py) - ~130 lines
+   - Generate JSON Schema from Python type hints
+   - Parse docstrings for parameter descriptions
+   - Support Optional, Union, list, dict types
+
+5. ✅ `MCPBridge` (tools/mcp_bridge.py) - ~280 lines
+   - Connect to MCP servers (stdio and HTTP transports)
+   - Load tools from MCP servers
+   - Execute MCP tools via bridge
+   - Convert to ToolRegistry for use with ChatService
+
+6. ✅ Integration with ChatService
+   - Accept `ToolRegistry`, `dict[str, Callable]`, or raw tool definitions
+   - Automatic tool execution with registry
+   - Pass-through mode for raw definitions
+
+**Files created:**
+- `src/mlpal_assistants/tools/__init__.py`
+- `src/mlpal_assistants/tools/registry.py`
+- `src/mlpal_assistants/tools/executor.py`
+- `src/mlpal_assistants/tools/loop.py`
+- `src/mlpal_assistants/tools/schema.py`
+- `src/mlpal_assistants/tools/result.py`
+- `src/mlpal_assistants/tools/mcp_bridge.py`
+
+**Verified working:**
+- Tool registration and schema generation
+- Tool execution with sync/async functions
+- Multi-turn agentic loops
+- Integration with chat completions
 
 ### Phase 3: Additional Services
 

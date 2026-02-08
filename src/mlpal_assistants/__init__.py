@@ -42,6 +42,7 @@ Example:
 from mlpal_assistants._version import __version__
 from mlpal_assistants.facade import Assistants
 from mlpal_assistants.models.files import File
+from mlpal_assistants.tools import ToolRegistry, ToolResult
 from mlpal_assistants.exceptions import (
     AssistantsError,
     AuthenticationError,
@@ -89,6 +90,9 @@ __all__ = [
     "Assistants",
     # Files
     "File",
+    # Tools
+    "ToolRegistry",
+    "ToolResult",
     # Response types
     "ChatResponse",
     "EmbeddingResponse",
