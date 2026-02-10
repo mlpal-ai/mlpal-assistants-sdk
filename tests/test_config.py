@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from mlpal_assistants._config import Config
+from mlpal_assistants.config import Config
 
 
 class TestConfig:
@@ -49,7 +49,15 @@ class TestConfig:
         config = Config.from_env(api_key="key")
         assert config.timeout == 120.0
 
-    def test_default_model(self):
-        """Test default model."""
+    def test_config_is_immutable(self):
+        """Test that config is immutable (frozen dataclass)."""
         config = Config.from_env(api_key="key")
-        assert config.default_model == "mlpal"
+        with pytest.raises(AttributeError):
+            config.api_key = "new_key"  # type: ignore
+
+    def test_timeout_from_env_var(self, monkeypatch):
+        """Test timeout from environment variable."""
+        monkeypatch.setenv("MLPAL_API_KEY", "key")
+        monkeypatch.setenv("MLPAL_TIMEOUT", "30")
+        config = Config.from_env()
+        assert config.timeout == 30.0

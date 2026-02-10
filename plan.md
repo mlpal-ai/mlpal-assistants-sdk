@@ -1303,15 +1303,20 @@ AssistantsError (base)
 - `src/mlpal_assistants/facade.py` (added stream_chat method)
 - `src/mlpal_assistants/__init__.py` (exports ChatStream, ChatStreamDelta)
 
-### Phase 4: MCP Integration
+### Phase 4: MCP Integration ✅ COMPLETE
 
 **Goal:** MCP server support.
 
-**Tasks:**
-1. Implement `MCPClient`
-2. Implement stdio/http transports
-3. Tool discovery
-4. Integration with `AgentLoop`
+**Status:** Completed in Phase 2 (2026-02-08)
+
+**Implemented:**
+1. ✅ `MCPBridge` class (tools/mcp_bridge.py)
+2. ✅ Stdio transport via `connect_stdio()`
+3. ✅ HTTP transport via `connect_http()`
+4. ✅ Tool discovery with `list_tools()` and refresh
+5. ✅ Integration with ToolRegistry via `get_tool_registry()`
+6. ✅ Async context manager support
+7. ✅ Multi-server connections
 
 ### Phase 5: Production Hardening
 
