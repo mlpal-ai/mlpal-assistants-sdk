@@ -86,7 +86,8 @@ class HTTPTransport:
             raise ConnectionError(f"Connection failed: {e}") from e
 
         self._raise_for_status(response)
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
     async def get(
         self,
@@ -119,7 +120,8 @@ class HTTPTransport:
             raise ConnectionError(f"Connection failed: {e}") from e
 
         self._raise_for_status(response)
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
     def _raise_for_status(self, response: httpx.Response) -> None:
         """Map HTTP status codes to exceptions."""

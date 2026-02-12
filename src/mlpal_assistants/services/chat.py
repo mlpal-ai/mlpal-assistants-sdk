@@ -75,6 +75,11 @@ class ChatService(BaseService):
 
         # If we have a registry, use the agent loop for automatic execution
         if tool_registry is not None:
+            # Extract Pydantic model for tool loop (doesn't support raw dict schemas)
+            pydantic_response_format: type[BaseModel] | None = None
+            if isinstance(response_format, type) and issubclass(response_format, BaseModel):
+                pydantic_response_format = response_format
+
             return await self._complete_with_tools(
                 model=model,
                 messages=messages,
@@ -84,7 +89,7 @@ class ChatService(BaseService):
                 max_tokens=max_tokens,
                 top_p=top_p,
                 stop=stop,
-                response_format=response_format,
+                response_format=pydantic_response_format,
                 tool_choice=tool_choice,
                 parallel_tool_calls=parallel_tool_calls,
             )

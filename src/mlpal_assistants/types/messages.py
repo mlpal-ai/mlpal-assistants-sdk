@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 if TYPE_CHECKING:
-    from mlpal_assistants.files import File
+    from mlpal_assistants.models.files import File
 
 
 class FileAttachment(TypedDict, total=False):
@@ -40,7 +40,7 @@ def normalize_message(message: Message | dict[str, Any]) -> dict[str, Any]:
     Returns:
         Message dict ready for API submission
     """
-    from mlpal_assistants.files import File
+    from mlpal_assistants.models.files import File
 
     result: dict[str, Any] = dict(message)
 

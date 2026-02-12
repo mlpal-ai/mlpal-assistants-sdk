@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 from mlpal_assistants.tools.schema import generate_tool_schema
 
@@ -169,7 +169,7 @@ class ToolRegistry:
         """Number of registered tools."""
         return len(self._tools)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         """Iterate over tool names."""
         return iter(self._tools)
 

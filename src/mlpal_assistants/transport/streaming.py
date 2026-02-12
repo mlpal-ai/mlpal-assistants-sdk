@@ -21,7 +21,8 @@ class StreamEvent:
 
     def json(self) -> dict[str, Any]:
         """Parse data as JSON."""
-        return json.loads(self.data)
+        result: dict[str, Any] = json.loads(self.data)
+        return result
 
 
 async def iter_sse_lines(response: httpx.Response) -> AsyncIterator[str]:

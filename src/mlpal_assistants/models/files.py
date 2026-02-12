@@ -91,25 +91,25 @@ class File:
 
     # Convenience factories
     @classmethod
-    def image(cls, source: str | Path | bytes, **kwargs) -> File:
+    def image(cls, source: str | Path | bytes, *, mime_type: str | None = None) -> File:
         """Create an image file attachment."""
         if isinstance(source, bytes):
-            return cls.from_bytes(source, type="image", **kwargs)
-        return cls.from_path(source, type="image", **kwargs)
+            return cls.from_bytes(source, type="image", mime_type=mime_type or "image/png")
+        return cls.from_path(source, type="image", mime_type=mime_type)
 
     @classmethod
-    def audio(cls, source: str | Path | bytes, **kwargs) -> File:
+    def audio(cls, source: str | Path | bytes, *, mime_type: str | None = None) -> File:
         """Create an audio file attachment."""
         if isinstance(source, bytes):
-            return cls.from_bytes(source, type="audio", **kwargs)
-        return cls.from_path(source, type="audio", **kwargs)
+            return cls.from_bytes(source, type="audio", mime_type=mime_type or "audio/mpeg")
+        return cls.from_path(source, type="audio", mime_type=mime_type)
 
     @classmethod
-    def document(cls, source: str | Path | bytes, **kwargs) -> File:
+    def document(cls, source: str | Path | bytes, *, mime_type: str | None = None) -> File:
         """Create a document file attachment."""
         if isinstance(source, bytes):
-            return cls.from_bytes(source, type="document", **kwargs)
-        return cls.from_path(source, type="document", **kwargs)
+            return cls.from_bytes(source, type="document", mime_type=mime_type or "application/octet-stream")
+        return cls.from_path(source, type="document", mime_type=mime_type)
 
     @staticmethod
     def _infer_type(mime: str | None) -> FileType:
@@ -122,9 +122,9 @@ class File:
             return "audio"
         return "document"
 
-    def to_api_format(self) -> dict:
+    def to_api_format(self) -> dict[str, str]:
         """Serialize for API request."""
-        result: dict = {"type": self.type}
+        result: dict[str, str] = {"type": self.type}
 
         if self._url:
             result["url"] = self._url

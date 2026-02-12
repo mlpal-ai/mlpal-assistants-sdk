@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,7 +16,7 @@ class TokenUsage:
     cached_tokens: int | None = None
 
     @classmethod
-    def from_api(cls, data: dict) -> TokenUsage:
+    def from_api(cls, data: dict[str, Any]) -> TokenUsage:
         """Create from API response."""
         return cls(
             input_tokens=data.get("input_tokens", 0) or data.get("prompt_tokens", 0),
@@ -36,7 +37,7 @@ class CostInfo:
     compute_units: float
 
     @classmethod
-    def from_api(cls, data: dict) -> CostInfo:
+    def from_api(cls, data: dict[str, Any]) -> CostInfo:
         """Create from API response."""
         tokens_data = data.get("tokens", data.get("usage", {}))
 
@@ -63,7 +64,7 @@ class RoutingInfo:
     strategy: str | None = None
 
     @classmethod
-    def from_api(cls, data: dict) -> RoutingInfo:
+    def from_api(cls, data: dict[str, Any]) -> RoutingInfo:
         """Create from API response.
 
         API returns: resolved_provider (not provider)

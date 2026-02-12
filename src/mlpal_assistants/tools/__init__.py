@@ -13,7 +13,7 @@ from mlpal_assistants.tools.result import ToolResult
 from mlpal_assistants.tools.loop import AgentLoop
 
 # Lazy import for MCP bridge (requires optional dependency)
-def __getattr__(name: str):
+def __getattr__(name: str) -> type:
     if name == "MCPBridge":
         from mlpal_assistants.tools.mcp_bridge import MCPBridge
         return MCPBridge

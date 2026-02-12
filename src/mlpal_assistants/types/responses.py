@@ -19,7 +19,7 @@ class FunctionCall:
     arguments: str
 
     @classmethod
-    def from_api(cls, data: dict) -> FunctionCall:
+    def from_api(cls, data: dict[str, Any]) -> FunctionCall:
         """Create from API response."""
         return cls(
             name=data.get("name", ""),
@@ -36,7 +36,7 @@ class ToolCall:
     function: FunctionCall
 
     @classmethod
-    def from_api(cls, data: dict) -> ToolCall:
+    def from_api(cls, data: dict[str, Any]) -> ToolCall:
         """Create from API response."""
         return cls(
             id=data.get("id", ""),
@@ -75,7 +75,7 @@ class ChatResponse:
     @classmethod
     def from_api(
         cls,
-        data: dict,
+        data: dict[str, Any],
         *,
         parsed_data: BaseModel | None = None,
         turns: list[Turn] | None = None,
@@ -130,7 +130,7 @@ class Embedding:
     embedding: list[float]
 
     @classmethod
-    def from_api(cls, data: dict) -> Embedding:
+    def from_api(cls, data: dict[str, Any]) -> Embedding:
         """Create from API response."""
         return cls(
             index=data.get("index", 0),
@@ -147,7 +147,7 @@ class EmbeddingResponse:
     cost: CostInfo
 
     @classmethod
-    def from_api(cls, data: dict) -> EmbeddingResponse:
+    def from_api(cls, data: dict[str, Any]) -> EmbeddingResponse:
         """Create from API response."""
         return cls(
             data=[Embedding.from_api(e) for e in data.get("data", [])],
@@ -164,7 +164,7 @@ class GeneratedImage:
     revised_prompt: str | None = None
 
     @classmethod
-    def from_api(cls, data: dict) -> GeneratedImage:
+    def from_api(cls, data: dict[str, Any]) -> GeneratedImage:
         """Create from API response."""
         return cls(
             url=data.get("url", ""),
@@ -180,7 +180,7 @@ class ImageResponse:
     cost: CostInfo
 
     @classmethod
-    def from_api(cls, data: dict) -> ImageResponse:
+    def from_api(cls, data: dict[str, Any]) -> ImageResponse:
         """Create from API response."""
         return cls(
             images=[GeneratedImage.from_api(img) for img in data.get("data", [])],
@@ -198,7 +198,7 @@ class GeneratedAudio:
     size_bytes: int
 
     @classmethod
-    def from_api(cls, data: dict, content: bytes) -> GeneratedAudio:
+    def from_api(cls, data: dict[str, Any], content: bytes) -> GeneratedAudio:
         """Create from API response."""
         return cls(
             url=data.get("url", ""),
@@ -221,7 +221,7 @@ class AudioResponse:
             f.write(self.audio.content)
 
     @classmethod
-    def from_api(cls, data: dict, content: bytes) -> AudioResponse:
+    def from_api(cls, data: dict[str, Any], content: bytes) -> AudioResponse:
         """Create from API response."""
         return cls(
             audio=GeneratedAudio.from_api(data, content),
@@ -238,7 +238,7 @@ class TranscriptionResponse:
     cost: CostInfo
 
     @classmethod
-    def from_api(cls, data: dict) -> TranscriptionResponse:
+    def from_api(cls, data: dict[str, Any]) -> TranscriptionResponse:
         """Create from API response."""
         return cls(
             text=data.get("text", ""),

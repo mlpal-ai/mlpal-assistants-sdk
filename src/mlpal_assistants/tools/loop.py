@@ -166,9 +166,11 @@ class AgentLoop:
         **kwargs: Any,
     ) -> ChatResponse:
         """Make a chat completion API call."""
+        # Cast to satisfy type checker - dict[str, Any] is compatible with Message | dict
+        normalized = normalize_messages(messages)  # type: ignore[arg-type]
         body: dict[str, Any] = {
             "model": model,
-            "messages": normalize_messages(messages),
+            "messages": normalized,
             "tools": self._tools.to_api_format(),
         }
 
