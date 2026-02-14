@@ -69,17 +69,22 @@ class HTTPTransport:
         timeout: float | None = None,
     ) -> dict[str, Any]:
         """POST multipart request for file uploads."""
-        # Remove Content-Type header for multipart (httpx sets it with boundary)
+        # Use a fresh client without Content-Type header for multipart uploads
+        # The main client has Content-Type: application/json which interferes
+        # with multipart boundary detection
+        url = f"{self._config.base_url}{path}"
         headers = {"Authorization": f"Bearer {self._config.api_key}"}
 
         try:
-            response = await self._client.post(
-                path,
-                data=data,
-                files=files,
-                headers=headers,
-                timeout=timeout or self._config.timeout,
-            )
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout or self._config.timeout)
+            ) as client:
+                response = await client.post(
+                    url,
+                    data=data,
+                    files=files,
+                    headers=headers,
+                )
         except httpx.TimeoutException as e:
             raise TimeoutError(f"Request timed out: {e}") from e
         except httpx.ConnectError as e:

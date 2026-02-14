@@ -25,16 +25,20 @@ if TYPE_CHECKING:
     from mlpal_assistants.tools.registry import ToolRegistry
 
 
-class Assistants:
+class Assistant:
     """
     Unified facade for the MLPal Assistants API.
 
     Thin wrapper that composes services for chat, embeddings, images, and audio.
 
     Example:
-        async with Assistants() as assistant:
+        async with Assistant() as assistant:
+            # Simple string shorthand
+            response = await assistant.chat("Hello!")
+            print(response.content)
+
+            # Full messages format
             response = await assistant.chat(
-                model="gpt-4o",
                 messages=[{"role": "user", "content": "Hello!"}]
             )
             print(response.content)
@@ -48,7 +52,7 @@ class Assistants:
         timeout: float | None = None,
     ) -> None:
         """
-        Initialize the Assistants client.
+        Initialize the Assistant client.
 
         Args:
             api_key: MLPal API key. Falls back to MLPAL_API_KEY env var.
@@ -73,8 +77,9 @@ class Assistants:
 
     async def chat(
         self,
-        messages: list[Message | dict[str, Any]],
+        content_or_messages: str | list[Message | dict[str, Any]] | None = None,
         *,
+        messages: list[Message | dict[str, Any]] | None = None,
         model: str = "mlpal",
         temperature: float | None = None,
         max_tokens: int | None = None,
@@ -89,8 +94,13 @@ class Assistants:
         """
         Create a chat completion.
 
+        Accepts either a simple string or a list of messages:
+        - `chat("Hello!")` - Simple string shorthand
+        - `chat(messages=[...])` - Full messages format
+
         Args:
-            messages: Conversation messages
+            content_or_messages: Either a string (user message) or list of messages
+            messages: Conversation messages (alternative to content_or_messages)
             model: Model identifier (e.g., "gpt-4o", "claude-sonnet", "mlpal")
             temperature: Sampling temperature (0-2)
             max_tokens: Maximum tokens to generate
@@ -109,7 +119,10 @@ class Assistants:
             ChatResponse with content, cost, routing, and optional structured data
 
         Example:
-            # Simple chat
+            # Simple string shorthand
+            response = await assistant.chat("Hello!")
+
+            # Full messages format
             response = await assistant.chat(
                 messages=[{"role": "user", "content": "Hello!"}]
             )
@@ -120,13 +133,26 @@ class Assistants:
                 return f"Sunny in {city}"
 
             response = await assistant.chat(
-                messages=[{"role": "user", "content": "Weather in Paris?"}],
+                "Weather in Paris?",
                 tools={"get_weather": get_weather},
             )
         """
+        # Resolve messages from the various input formats
+        resolved_messages: list[Message | dict[str, Any]]
+        if isinstance(content_or_messages, str):
+            # Simple string shorthand
+            resolved_messages = [{"role": "user", "content": content_or_messages}]
+        elif content_or_messages is not None:
+            # List passed as first positional arg
+            resolved_messages = content_or_messages
+        elif messages is not None:
+            # messages= keyword argument
+            resolved_messages = messages
+        else:
+            raise ValueError("Either content string or messages list is required")
         return await self._chat.complete(
             model=model,
-            messages=messages,
+            messages=resolved_messages,
             temperature=temperature,
             max_tokens=max_tokens,
             top_p=top_p,
@@ -312,7 +338,7 @@ class Assistants:
         """Close the client and release resources."""
         await self._transport.close()
 
-    async def __aenter__(self) -> Assistants:
+    async def __aenter__(self) -> Assistant:
         """Enter async context."""
         return self
 

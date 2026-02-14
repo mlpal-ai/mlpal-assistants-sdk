@@ -5,28 +5,32 @@ Official Python SDK for the MLPal Assistants API.
 ## Installation
 
 ```bash
-pip install mlpal-assistants
+# From MLPal private PyPI
+pip install mlpal-assistants --index-url https://pypi.mlpal.ai/simple/
 
 # Or with uv
-uv add mlpal-assistants
+uv add mlpal-assistants --index-url https://pypi.mlpal.ai/simple/
 
 # With MCP support
-pip install mlpal-assistants[mcp]
+pip install "mlpal-assistants[mcp]" --index-url https://pypi.mlpal.ai/simple/
 ```
 
 ## Quick Start
 
 ```python
 import asyncio
-from mlpal_assistants import Assistants, File
+from mlpal_assistants import Assistant
 
 async def main():
-    async with Assistants() as assistant:  # Uses MLPAL_API_KEY env var
-        # Simple chat
+    async with Assistant() as assistant:  # Uses MLPAL_API_KEY env var
+        # Simple string shorthand
+        response = await assistant.chat("Hello!")
+        print(response.content)
+
+        # Or full messages format
         response = await assistant.chat(
             messages=[{"role": "user", "content": "Hello!"}]
         )
-        print(response.content)
 
 asyncio.run(main())
 ```
@@ -47,9 +51,9 @@ asyncio.run(main())
 ### Chat with Files
 
 ```python
-from mlpal_assistants import Assistants, File
+from mlpal_assistants import Assistant, File
 
-async with Assistants() as assistant:
+async with Assistant() as assistant:
     response = await assistant.chat(
         messages=[{
             "role": "user",
@@ -127,13 +131,13 @@ print(response.text)
 ## Configuration
 
 ```python
-from mlpal_assistants import Assistants
+from mlpal_assistants import Assistant
 
 # From environment (recommended)
-assistant = Assistants()  # Uses MLPAL_API_KEY
+assistant = Assistant()  # Uses MLPAL_API_KEY
 
 # Explicit configuration
-assistant = Assistants(
+assistant = Assistant(
     api_key="mlpal_sk_...",
     base_url="https://models.mlpal.ai",
     timeout=120.0,

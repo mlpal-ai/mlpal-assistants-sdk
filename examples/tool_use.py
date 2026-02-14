@@ -2,7 +2,7 @@
 
 import asyncio
 
-from mlpal_assistants import Assistants, ToolRegistry
+from mlpal_assistants import Assistant, ToolRegistry
 
 
 def get_weather(city: str, unit: str = "celsius") -> str:
@@ -53,7 +53,7 @@ async def main():
     tools.register("get_weather", get_weather)
     tools.register("calculate", calculate)
 
-    async with Assistants() as assistant:
+    async with Assistant() as assistant:
         # The SDK automatically executes tools and returns the final response
         response = await assistant.chat(
             messages=[

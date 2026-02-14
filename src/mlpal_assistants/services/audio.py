@@ -52,14 +52,38 @@ class AudioService(BaseService):
 
         data = await self._transport.post("/v1/audio/speech", body=body)
 
-        # Handle base64 audio response
-        audio_content = b""
+        # Handle URL-based response (S3) or base64 response
+        audio_content = await self._get_audio_content(data)
+
+        return AudioResponse.from_api(data, audio_content)
+
+    async def _get_audio_content(self, data: dict[str, Any]) -> bytes:
+        """
+        Extract audio content from API response.
+
+        Handles both URL-based (S3) and base64-encoded responses.
+        """
+        # Priority 1: URL-based response (S3)
+        if url := data.get("url"):
+            return await self._fetch_audio_from_url(url)
+
+        # Priority 2: Base64-encoded response
         if audio_b64 := data.get("audio"):
             import base64
 
-            audio_content = base64.b64decode(audio_b64)
+            return base64.b64decode(audio_b64)
 
-        return AudioResponse.from_api(data, audio_content)
+        # No audio content found
+        return b""
+
+    async def _fetch_audio_from_url(self, url: str) -> bytes:
+        """Fetch audio content from URL (typically S3)."""
+        import httpx
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.content
 
     async def transcribe(
         self,
@@ -84,11 +108,11 @@ class AudioService(BaseService):
         # Prepare file for upload
         if isinstance(file, (str, Path)):
             path = Path(file)
-            file_data = ("audio", path.read_bytes(), self._guess_mime(path))
+            file_data = (path.name, path.read_bytes(), self._guess_mime(path))
         elif isinstance(file, bytes):
-            file_data = ("audio", file, "audio/mpeg")
+            file_data = ("audio.mp3", file, "audio/mpeg")
         else:
-            file_data = ("audio", file.read(), "audio/mpeg")
+            file_data = ("audio.mp3", file.read(), "audio/mpeg")
 
         files = {"file": file_data}
         data = {"model": model}

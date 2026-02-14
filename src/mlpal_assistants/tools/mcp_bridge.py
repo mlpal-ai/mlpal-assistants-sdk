@@ -377,6 +377,44 @@ class MCPBridge:
         self._connections.clear()
         self._tools.clear()
 
+    async def connect_from_config(
+        self,
+        config_path: str | None = None,
+        server_names: list[str] | None = None,
+    ) -> None:
+        """
+        Connect to MCP servers defined in mlpal.json config.
+
+        Auto-discovers mlpal.json in current directory and parents,
+        or loads from explicit path.
+
+        Args:
+            config_path: Explicit config file path (default: auto-discover)
+            server_names: Specific servers to connect (default: all)
+
+        Example:
+            async with MCPBridge() as bridge:
+                # Auto-discover and connect all servers
+                await bridge.connect_from_config()
+
+                # Or connect specific servers only
+                await bridge.connect_from_config(
+                    server_names=["perplexity", "filesystem"]
+                )
+
+                tools = bridge.get_tool_registry()
+        """
+        from mlpal_assistants.tools.mcp_config import MCPConfig, connect_from_config
+
+        config: MCPConfig | None
+        if config_path:
+            config = MCPConfig.from_file(config_path)
+        else:
+            config = MCPConfig.discover()
+
+        if config:
+            await connect_from_config(self, config, server_names)
+
     async def __aenter__(self) -> MCPBridge:
         """Enter async context."""
         return self

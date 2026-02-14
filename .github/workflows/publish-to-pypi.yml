@@ -1,0 +1,181 @@
+name: Publish to Private PyPI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  PYPI_SERVER_URL: ${{ secrets.PYPI_SERVER_URL }}
+  PYPI_NAMESPACE: ${{ secrets.PYPI_NAMESPACE }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run tests
+        run: uv run pytest tests/ -v
+
+      - name: Type check
+        run: uv run mypy src/mlpal_assistants --strict
+
+      - name: Lint
+        run: uv run ruff check src/
+
+  build-and-publish:
+    name: Build and Publish Package
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Extract package name and version
+        id: package-info
+        run: |
+          # Extract package name from pyproject.toml
+          PACKAGE_NAME=$(grep '^name = ' pyproject.toml | sed 's/name = "\(.*\)"/\1/')
+          echo "package-name=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
+
+          # Extract version from pyproject.toml
+          VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+          # Normalize package name for wheel filename (replace - with _)
+          WHEEL_NAME=$(echo "${PACKAGE_NAME}" | tr '-' '_')
+          echo "wheel-name=${WHEEL_NAME}" >> $GITHUB_OUTPUT
+
+          echo "Package: ${PACKAGE_NAME} v${VERSION}"
+
+      - name: Build package
+        run: |
+          echo "Building ${{ steps.package-info.outputs.package-name }} v${{ steps.package-info.outputs.version }}..."
+          uv build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+          kubectl version --client
+
+      - name: Debug - Verify secrets and environment
+        run: |
+          echo "=== Environment Variables ==="
+          echo "PYPI_NAMESPACE: ${{ env.PYPI_NAMESPACE }}"
+          echo "PYPI_SERVER_URL: ${{ env.PYPI_SERVER_URL }}"
+          echo "PYPI_POD_LABEL: ${{ secrets.PYPI_POD_LABEL }}"
+          echo "EKS_CLUSTER_NAME: ${{ env.EKS_CLUSTER_NAME }}"
+          echo ""
+          echo "=== Listing all pods in namespace ==="
+          kubectl get pods -n ${{ env.PYPI_NAMESPACE }}
+          echo ""
+          echo "=== Checking pods with label: ${{ secrets.PYPI_POD_LABEL }} ==="
+          kubectl get pods -n ${{ env.PYPI_NAMESPACE }} -l ${{ secrets.PYPI_POD_LABEL }} || echo "No pods found with this label"
+
+      - name: Check if package version exists and delete if found
+        id: check-version
+        run: |
+          # Get PyPI server pod name with error handling
+          POD_NAME=$(kubectl get pods -n ${{ env.PYPI_NAMESPACE }} -l ${{ secrets.PYPI_POD_LABEL }} -o jsonpath='{.items[0].metadata.name}' 2>&1)
+
+          if [ -z "$POD_NAME" ] || [[ "$POD_NAME" == *"error"* ]]; then
+            echo "❌ Error: Could not find PyPI server pod"
+            echo "Namespace: ${{ env.PYPI_NAMESPACE }}"
+            echo "Label: ${{ secrets.PYPI_POD_LABEL }}"
+            echo "Output: $POD_NAME"
+            exit 1
+          fi
+
+          echo "✅ Found PyPI Pod: ${POD_NAME}"
+
+          # Check if package version exists
+          WHEEL_FILE="${{ steps.package-info.outputs.wheel-name }}-${{ steps.package-info.outputs.version }}-py3-none-any.whl"
+          echo "Checking for: ${WHEEL_FILE}"
+
+          if kubectl exec -n ${{ env.PYPI_NAMESPACE }} ${POD_NAME} -- ls /data/packages/${WHEEL_FILE} 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Package version already exists, will delete it first"
+
+            # Delete the existing package
+            kubectl exec -n ${{ env.PYPI_NAMESPACE }} ${POD_NAME} -- rm /data/packages/${WHEEL_FILE}
+            echo "✅ Deleted existing package: ${WHEEL_FILE}"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Package version does not exist, will publish new version"
+          fi
+
+      - name: Install twine
+        run: |
+          pip install twine
+
+      - name: Publish to PyPI server
+        run: |
+          echo "Publishing ${{ steps.package-info.outputs.package-name }} v${{ steps.package-info.outputs.version }} to ${{ env.PYPI_SERVER_URL }}..."
+
+          twine upload \
+            --repository-url ${{ env.PYPI_SERVER_URL }} \
+            --non-interactive \
+            --username dummy \
+            --password dummy \
+            dist/*.whl
+
+      - name: Verify publication
+        run: |
+          sleep 5
+          curl -s ${{ env.PYPI_SERVER_URL }}/simple/${{ steps.package-info.outputs.package-name }}/ | grep "${{ steps.package-info.outputs.version }}"
+          echo "✅ Successfully published ${{ steps.package-info.outputs.package-name }} v${{ steps.package-info.outputs.version }}"
+
+      - name: Deployment summary
+        run: |
+          echo "### Package Published! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** ${{ steps.package-info.outputs.package-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.package-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**PyPI Server:** ${{ env.PYPI_SERVER_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Published by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation Command" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "pip install --index-url ${{ env.PYPI_SERVER_URL }}/simple/ ${{ steps.package-info.outputs.package-name }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check-version.outputs.exists }}" == "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Note:** Existing package version was deleted before publishing" >> $GITHUB_STEP_SUMMARY
+          fi

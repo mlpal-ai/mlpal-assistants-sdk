@@ -31,7 +31,7 @@ jobs:
         run: uv run pytest tests/ -v
 
       - name: Type check
-        run: uv run mypy src/mlpal_assistants
+        run: uv run mypy src/mlpal_assistants --strict
 
       - name: Lint
         run: uv run ruff check src/

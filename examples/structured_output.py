@@ -4,7 +4,7 @@ import asyncio
 
 from pydantic import BaseModel
 
-from mlpal_assistants import Assistants
+from mlpal_assistants import Assistant
 
 
 class Person(BaseModel):
@@ -22,16 +22,11 @@ class ExtractedPeople(BaseModel):
 
 
 async def main():
-    async with Assistants() as assistant:
-        # Extract structured data from text
+    async with Assistant() as assistant:
+        # Extract structured data from text using simple string API
         response = await assistant.chat(
-            messages=[
-                {
-                    "role": "user",
-                    "content": "John is a 30 year old software engineer. "
-                    "His colleague Maria is 28 and works as a designer.",
-                }
-            ],
+            "John is a 30 year old software engineer. "
+            "His colleague Maria is 28 and works as a designer.",
             response_format=ExtractedPeople,
         )
 

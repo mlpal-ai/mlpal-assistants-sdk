@@ -2,11 +2,11 @@
 
 import asyncio
 
-from mlpal_assistants import Assistants
+from mlpal_assistants import Assistant
 
 
 async def main():
-    async with Assistants() as assistant:
+    async with Assistant() as assistant:
         print("Streaming response: ", end="", flush=True)
 
         async with assistant.stream_chat(

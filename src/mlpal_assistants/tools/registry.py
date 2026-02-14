@@ -201,11 +201,61 @@ class ToolRegistry:
             registry.register(name, func)
         return registry
 
-    def merge(self, other: ToolRegistry) -> ToolRegistry:
+    def merge(
+        self,
+        other: ToolRegistry,
+        *,
+        overwrite: bool = True,
+        prefix: str | None = None,
+    ) -> ToolRegistry:
         """
         Merge another registry into this one.
 
-        Returns self for chaining.
+        Args:
+            other: Registry to merge from
+            overwrite: If True, overwrite existing tools with same name.
+                      If False, keep existing tools on conflict.
+            prefix: Optional prefix to add to merged tool names (e.g., "mcp.")
+
+        Returns:
+            Self for chaining.
+
+        Example:
+            # Merge MCP tools with regular tools
+            tools = ToolRegistry()
+            tools.register("search", search_func)
+
+            mcp_tools = bridge.get_tool_registry()
+            tools.merge(mcp_tools, prefix="mcp.")
+
+            # Now has both "search" and "mcp.server.tool"
         """
-        self._tools.update(other._tools)
+        for name, tool in other._tools.items():
+            new_name = f"{prefix}{name}" if prefix else name
+
+            if not overwrite and new_name in self._tools:
+                continue
+
+            self._tools[new_name] = ToolDefinition(
+                name=new_name,
+                func=tool.func,
+                description=tool.description,
+                parameters=tool.parameters,
+            )
+
         return self
+
+    @classmethod
+    def merged(cls, *registries: ToolRegistry) -> ToolRegistry:
+        """
+        Create a new registry by merging multiple registries.
+
+        Later registries overwrite earlier ones on name conflicts.
+
+        Example:
+            combined = ToolRegistry.merged(local_tools, mcp_tools, api_tools)
+        """
+        result = cls()
+        for registry in registries:
+            result.merge(registry)
+        return result

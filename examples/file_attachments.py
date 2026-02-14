@@ -2,11 +2,11 @@
 
 import asyncio
 
-from mlpal_assistants import Assistants, File
+from mlpal_assistants import Assistant, File
 
 
 async def main():
-    async with Assistants() as assistant:
+    async with Assistant() as assistant:
         # From local file path
         # image = File.from_path("photo.jpg")
 

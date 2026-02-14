@@ -25,14 +25,14 @@ Complete guide to the MLPal Assistants Python SDK.
 ## Installation
 
 ```bash
-# Using pip
-pip install mlpal-assistants
+# Using pip (from MLPal private PyPI)
+pip install mlpal-assistants --index-url https://pypi.mlpal.ai/simple/
 
 # Using uv
-uv add mlpal-assistants
+uv add mlpal-assistants --index-url https://pypi.mlpal.ai/simple/
 
 # With MCP support
-pip install mlpal-assistants[mcp]
+pip install "mlpal-assistants[mcp]" --index-url https://pypi.mlpal.ai/simple/
 ```
 
 **Requirements:** Python 3.12+
@@ -43,15 +43,19 @@ pip install mlpal-assistants[mcp]
 
 ```python
 import asyncio
-from mlpal_assistants import Assistants
+from mlpal_assistants import Assistant
 
 async def main():
     # Create client (uses MLPAL_API_KEY environment variable)
-    async with Assistants() as assistant:
+    async with Assistant() as assistant:
+        # Simple string shorthand
+        response = await assistant.chat("Hello!")
+        print(response.content)
+
+        # Or full messages format
         response = await assistant.chat(
             messages=[{"role": "user", "content": "Hello!"}]
         )
-        print(response.content)
 
 asyncio.run(main())
 ```
@@ -63,6 +67,11 @@ asyncio.run(main())
 ### Basic Chat
 
 ```python
+# Simple string shorthand - easiest way!
+response = await assistant.chat("What is Python?")
+print(response.content)
+
+# Full messages format for more control
 response = await assistant.chat(
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
@@ -97,7 +106,9 @@ messages = [
 ]
 
 response = await assistant.chat(messages=messages)
-messages.append({"role": "assistant", "content": response.content})
+
+# Use .message property to add response to history
+messages.append(response.message)
 
 messages.append({"role": "user", "content": "What's my name?"})
 response = await assistant.chat(messages=messages)
@@ -463,12 +474,10 @@ audio_bytes = response.audio.content
 Transcribe audio to text.
 
 ```python
-from mlpal_assistants import File
-
 response = await assistant.transcribe(
-    file=File.from_path("audio.mp3"),
+    "audio.mp3",                # Path, bytes, or file object
     language="en",              # Optional language hint
-    prompt="Technical podcast",  # Optional context
+    prompt="Technical podcast", # Optional context
 )
 
 print(response.text)
@@ -499,7 +508,7 @@ Connect to Model Context Protocol servers for extended tool capabilities.
 ### Setup
 
 ```bash
-pip install mlpal-assistants[mcp]
+pip install "mlpal-assistants[mcp]" --index-url https://pypi.mlpal.ai/simple/
 ```
 
 ### Connect to MCP Server
@@ -543,6 +552,78 @@ async with MCPBridge() as bridge:
 
     tools = bridge.get_tool_registry()
     # Use combined tools...
+```
+
+### Config File (mlpal.json)
+
+Auto-discover and connect MCP servers from a `mlpal.json` config file:
+
+```json
+{
+  "mcpServers": {
+    "perplexity": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "server-perplexity-ask"],
+      "env": {
+        "PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"
+      }
+    },
+    "api-server": {
+      "transport": "http",
+      "url": "http://localhost:8080/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Use the config in code:
+
+```python
+async with MCPBridge() as bridge:
+    # Auto-discover mlpal.json in current directory or parents
+    await bridge.connect_from_config()
+
+    # Or connect specific servers only
+    await bridge.connect_from_config(server_names=["perplexity"])
+
+    # Or load from explicit path
+    await bridge.connect_from_config(config_path="/path/to/mlpal.json")
+
+    tools = bridge.get_tool_registry()
+```
+
+Environment variables are interpolated using `${VAR_NAME}` syntax.
+
+### Merging Tools
+
+Combine MCP tools with regular tools:
+
+```python
+from mlpal_assistants import ToolRegistry
+from mlpal_assistants.tools import MCPBridge
+
+# Create regular tools
+tools = ToolRegistry()
+
+@tools.tool
+def search(query: str) -> str:
+    """Search locally."""
+    return "local results"
+
+# Add MCP tools
+async with MCPBridge() as bridge:
+    await bridge.connect_from_config()
+    mcp_tools = bridge.get_tool_registry()
+
+    # Merge MCP tools into regular tools
+    tools.merge(mcp_tools)
+
+    # Or create a new combined registry
+    combined = ToolRegistry.merged(tools, mcp_tools)
 ```
 
 ---
@@ -613,9 +694,9 @@ export MLPAL_TIMEOUT="120"  # Optional, in seconds
 ### Explicit Configuration
 
 ```python
-from mlpal_assistants import Assistants
+from mlpal_assistants import Assistant
 
-assistant = Assistants(
+assistant = Assistant(
     api_key="mlpal_sk_...",
     base_url="https://models.mlpal.ai",
     timeout=120.0,
@@ -626,11 +707,11 @@ assistant = Assistants(
 
 ```python
 # Recommended - ensures proper cleanup
-async with Assistants() as assistant:
+async with Assistant() as assistant:
     response = await assistant.chat(messages=messages)
 
 # Manual cleanup
-assistant = Assistants()
+assistant = Assistant()
 try:
     response = await assistant.chat(messages=messages)
 finally:

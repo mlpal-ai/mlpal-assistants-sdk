@@ -5,43 +5,53 @@ A production-grade SDK providing a unified interface for chat, embeddings,
 image generation, text-to-speech, and transcription.
 
 Example:
-    from mlpal_assistants import Assistants, File
+    from mlpal_assistants import Assistant, File
 
     async def main():
-        assistant = Assistants()
+        async with Assistant() as assistant:
+            # Simple string shorthand
+            response = await assistant.chat("Hello!")
+            print(response.content)
 
-        # Simple chat
-        response = await assistant.chat(
-            messages=[{"role": "user", "content": "Hello!"}]
-        )
-        print(response.content)
+            # Full messages format
+            response = await assistant.chat(
+                messages=[{"role": "user", "content": "Hello!"}]
+            )
 
-        # With image
-        response = await assistant.chat(
-            messages=[{
-                "role": "user",
-                "content": "What's in this image?",
-                "files": [File("photo.jpg")]
-            }]
-        )
+            # Building conversation history
+            messages = [{"role": "user", "content": "My name is Alice"}]
+            response = await assistant.chat(messages=messages)
+            messages.append(response.message)  # Use .message for history
 
-        # Structured output
-        from pydantic import BaseModel
+            # With image
+            response = await assistant.chat(
+                messages=[{
+                    "role": "user",
+                    "content": "What's in this image?",
+                    "files": [File.from_path("photo.jpg")]
+                }]
+            )
 
-        class Person(BaseModel):
-            name: str
-            age: int
+            # Structured output
+            from pydantic import BaseModel
 
-        response = await assistant.chat(
-            messages=[{"role": "user", "content": "John is 30"}],
-            response_format=Person,
-        )
-        print(response.data.name)  # "John"
+            class Person(BaseModel):
+                name: str
+                age: int
+
+            response = await assistant.chat(
+                "John is 30 years old",
+                response_format=Person,
+            )
+            print(response.data.name)  # "John"
 """
 
 from mlpal_assistants._version import __version__
-from mlpal_assistants.facade import Assistants
+from mlpal_assistants.facade import Assistant
 from mlpal_assistants.models.files import File
+
+# Backward compatibility alias
+Assistants = Assistant
 from mlpal_assistants.tools import ToolRegistry, ToolResult
 from mlpal_assistants.exceptions import (
     AssistantsError,
@@ -88,7 +98,8 @@ __all__ = [
     # Version
     "__version__",
     # Main client
-    "Assistants",
+    "Assistant",
+    "Assistants",  # Backward compatibility alias
     # Files
     "File",
     # Tools
