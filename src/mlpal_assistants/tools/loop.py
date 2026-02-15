@@ -116,6 +116,7 @@ class AgentLoop:
                 top_p=top_p,
                 stop=stop,
                 tool_choice=tool_choice,
+                response_format=response_format,
             )
 
             # Check if done (no more tool calls)
@@ -174,13 +175,73 @@ class AgentLoop:
             "tools": self._tools.to_api_format(),
         }
 
-        # Add optional parameters
+        # Handle response_format specially - convert Pydantic to JSON schema
+        response_format = kwargs.pop("response_format", None)
+        if response_format is not None:
+            if isinstance(response_format, type) and issubclass(response_format, BaseModel):
+                body["response_format"] = self._build_json_schema(response_format)
+            else:
+                body["response_format"] = response_format
+
+        # Add remaining optional parameters
         for key, value in kwargs.items():
             if value is not None:
                 body[key] = value
 
         data = await self._transport.post("/v1/chat/completions", body=body)
         return ChatResponse.from_api(data)
+
+    def _build_json_schema(self, model: type[BaseModel]) -> dict[str, Any]:
+        """Build JSON schema response format from Pydantic model."""
+        schema = model.model_json_schema()
+        strict_schema = self._make_strict_schema(schema)
+
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": model.__name__,
+                "schema": strict_schema,
+                "strict": True,
+            },
+        }
+
+    def _make_strict_schema(self, schema: dict[str, Any]) -> dict[str, Any]:
+        """
+        Make schema OpenAI-strict compliant.
+
+        OpenAI requires:
+        - additionalProperties: false on all objects
+        - All properties must be required
+        """
+        result = dict(schema)
+
+        # Handle definitions/$defs
+        if "$defs" in result:
+            result["$defs"] = {
+                name: self._make_strict_schema(defn)
+                for name, defn in result["$defs"].items()
+            }
+
+        # Make object schemas strict
+        if result.get("type") == "object":
+            result["additionalProperties"] = False
+            if "properties" in result:
+                result["required"] = list(result["properties"].keys())
+                result["properties"] = {
+                    name: self._make_strict_schema(prop)
+                    for name, prop in result["properties"].items()
+                }
+
+        # Handle arrays
+        if result.get("type") == "array" and "items" in result:
+            result["items"] = self._make_strict_schema(result["items"])
+
+        # Handle anyOf/oneOf
+        for key in ("anyOf", "oneOf"):
+            if key in result:
+                result[key] = [self._make_strict_schema(s) for s in result[key]]
+
+        return result
 
     def _build_assistant_message(self, response: ChatResponse) -> dict[str, Any]:
         """Build assistant message from response."""

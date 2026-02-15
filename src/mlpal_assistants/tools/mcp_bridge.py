@@ -47,8 +47,15 @@ class MCPTool:
 
     @property
     def qualified_name(self) -> str:
-        """Get fully qualified name (server.tool)."""
-        return f"{self.server_name}.{self.name}"
+        """Get fully qualified name (server_tool).
+
+        Uses underscore separator to comply with OpenAI's tool name pattern:
+        ^[a-zA-Z0-9_-]+$
+        """
+        # Sanitize both parts to ensure valid tool names
+        safe_server = self.server_name.replace(".", "_").replace("-", "_")
+        safe_name = self.name.replace(".", "_").replace("-", "_")
+        return f"{safe_server}_{safe_name}"
 
 
 class MCPBridge:
