@@ -10,13 +10,11 @@ Requires the 'mcp' optional dependency:
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from mlpal_assistants.exceptions import MCPConnectionError, MCPError, MCPToolNotFoundError
 from mlpal_assistants.tools.registry import ToolDefinition, ToolRegistry
-from mlpal_assistants.tools.result import ToolResult
 
 if TYPE_CHECKING:
     pass
@@ -112,13 +110,14 @@ class MCPBridge:
             cwd: Working directory
         """
         try:
+            from contextlib import AsyncExitStack
+
             from mcp import ClientSession, StdioServerParameters
             from mcp.client.stdio import stdio_client
-            from contextlib import AsyncExitStack
-        except ImportError:
+        except ImportError as err:
             raise MCPError(
                 "MCP package not installed. Install with: pip install mlpal-assistants[mcp]"
-            )
+            ) from err
 
         params = StdioServerParameters(
             command=command,
@@ -152,7 +151,7 @@ class MCPBridge:
             raise MCPConnectionError(
                 f"Failed to connect to MCP server '{name}': {e}",
                 server=name,
-            )
+            ) from e
 
     async def connect_http(
         self,
@@ -169,13 +168,14 @@ class MCPBridge:
             headers: Optional HTTP headers (for auth, etc.)
         """
         try:
+            from contextlib import AsyncExitStack
+
             from mcp import ClientSession
             from mcp.client.streamable_http import streamablehttp_client
-            from contextlib import AsyncExitStack
-        except ImportError:
+        except ImportError as err:
             raise MCPError(
                 "MCP package not installed. Install with: pip install mlpal-assistants[mcp]"
-            )
+            ) from err
 
         exit_stack = AsyncExitStack()
 
@@ -202,7 +202,7 @@ class MCPBridge:
             raise MCPConnectionError(
                 f"Failed to connect to MCP server '{name}': {e}",
                 server=name,
-            )
+            ) from e
 
     async def _load_tools_from_server(
         self,
@@ -275,7 +275,7 @@ class MCPBridge:
             return self._tools[name]
 
         # Try unqualified name (find first match)
-        for qualified_name, tool in self._tools.items():
+        for _qualified_name, tool in self._tools.items():
             if tool.name == name:
                 return tool
 

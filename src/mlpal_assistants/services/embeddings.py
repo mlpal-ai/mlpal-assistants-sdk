@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from mlpal_assistants.models.requests import EmbedRequest
 from mlpal_assistants.models.responses import EmbeddingResponse
 from mlpal_assistants.services._base import BaseService

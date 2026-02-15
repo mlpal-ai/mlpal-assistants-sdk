@@ -9,7 +9,7 @@ from mlpal_assistants.models.common import CostInfo, RoutingInfo
 from mlpal_assistants.models.tools import ToolCall
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel
+    pass
 
 
 @dataclass(frozen=True, slots=True)

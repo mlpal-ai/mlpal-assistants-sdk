@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator
+from typing import Any
 
 from mlpal_assistants.tools.schema import generate_tool_schema
 

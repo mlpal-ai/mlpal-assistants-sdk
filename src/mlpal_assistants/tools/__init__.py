@@ -8,11 +8,12 @@ This module provides:
 - MCPConfig: Configuration loader for mlpal.json files
 """
 
-from mlpal_assistants.tools.registry import ToolDefinition, ToolRegistry
 from mlpal_assistants.tools.executor import ToolExecutor
-from mlpal_assistants.tools.result import ToolResult
 from mlpal_assistants.tools.loop import AgentLoop
 from mlpal_assistants.tools.mcp_config import MCPConfig, MCPServerConfig
+from mlpal_assistants.tools.registry import ToolDefinition, ToolRegistry
+from mlpal_assistants.tools.result import ToolResult
+
 
 # Lazy import for MCP bridge (requires optional dependency)
 def __getattr__(name: str) -> type:

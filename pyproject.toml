@@ -57,7 +57,14 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
-ignore = ["E501"]
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B024",   # Abstract base class without abstract methods
+    "SIM102", # Use single if statement (readability preference)
+    "SIM105", # Use contextlib.suppress (readability preference)
+    "SIM108", # Use ternary operator (readability preference)
+    "UP036",  # Version block outdated (keep for compatibility)
+]
 
 [tool.mypy]
 python_version = "3.12"

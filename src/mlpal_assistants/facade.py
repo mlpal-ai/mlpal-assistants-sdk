@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, AsyncIterator, BinaryIO, Callable
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 from pydantic import BaseModel
 

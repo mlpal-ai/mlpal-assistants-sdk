@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
@@ -10,9 +10,7 @@ from pydantic import BaseModel
 from mlpal_assistants.exceptions import MaxTurnsExceededError
 from mlpal_assistants.models.messages import normalize_messages
 from mlpal_assistants.models.responses import ChatResponse, Turn
-from mlpal_assistants.models.tools import ToolCall
 from mlpal_assistants.tools.executor import ToolExecutor
-from mlpal_assistants.tools.result import ToolResult
 
 if TYPE_CHECKING:
     from mlpal_assistants.tools.registry import ToolRegistry
@@ -106,7 +104,7 @@ class AgentLoop:
         current_messages = list(messages)
         turns: list[Turn] = []
 
-        for turn_num in range(self._max_turns):
+        for _turn_num in range(self._max_turns):
             # Make API call
             response = await self._call_api(
                 current_messages,

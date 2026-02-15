@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import json
 import time
 from typing import TYPE_CHECKING, Any
 
-from mlpal_assistants.exceptions import ToolExecutionError
 from mlpal_assistants.tools.result import ToolResult
 
 if TYPE_CHECKING:
@@ -134,7 +132,7 @@ class ToolExecutor:
                 latency_ms=latency_ms,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.perf_counter() - start_time) * 1000
             return ToolResult.error_result(
                 tool_call_id=tool_call.id,

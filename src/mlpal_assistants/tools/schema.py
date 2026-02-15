@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import inspect
 import sys
-from typing import Any, Callable, Union, get_args, get_origin, get_type_hints
+from collections.abc import Callable
+from typing import Any, Union, get_args, get_origin, get_type_hints
 
 # Type to JSON Schema mapping
 TYPE_MAP: dict[type, str] = {

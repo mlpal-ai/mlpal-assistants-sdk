@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO
+from typing import Any, BinaryIO
 
 from mlpal_assistants.models.requests import SpeechRequest
 from mlpal_assistants.models.responses import AudioResponse, TranscriptionResponse
