@@ -120,7 +120,10 @@ class AgentLoop:
             )
 
             # Check if done (no more tool calls)
-            if response.finish_reason != "tool_calls" or not response.tool_calls:
+            # Note: Some providers (like Gemini) return finish_reason='stop' even
+            # when they want tool calls, so we check tool_calls presence as the
+            # primary indicator rather than relying solely on finish_reason
+            if not response.tool_calls:
                 return self._finalize_response(response, turns, response_format)
 
             # Execute tools
