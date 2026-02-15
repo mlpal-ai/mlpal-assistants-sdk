@@ -252,8 +252,9 @@ class AgentLoop:
         }
 
         if response.tool_calls:
-            message["tool_calls"] = [
-                {
+            message["tool_calls"] = []
+            for tc in response.tool_calls:
+                tc_dict: dict[str, Any] = {
                     "id": tc.id,
                     "type": tc.type,
                     "function": {
@@ -261,8 +262,10 @@ class AgentLoop:
                         "arguments": tc.function.arguments,
                     },
                 }
-                for tc in response.tool_calls
-            ]
+                # Include thought_signature if present (required by Gemini)
+                if tc.thought_signature:
+                    tc_dict["thought_signature"] = tc.thought_signature
+                message["tool_calls"].append(tc_dict)
 
         return message
 

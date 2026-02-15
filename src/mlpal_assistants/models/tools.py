@@ -29,6 +29,7 @@ class ToolCall:
     id: str
     type: str
     function: FunctionCall
+    thought_signature: str | None = None  # Gemini-specific field
 
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> ToolCall:
@@ -37,6 +38,7 @@ class ToolCall:
             id=data.get("id", ""),
             type=data.get("type", "function"),
             function=FunctionCall.from_api(data.get("function", {})),
+            thought_signature=data.get("thought_signature"),
         )
 
 
