@@ -1350,6 +1350,107 @@ AssistantsError (base)
 
 ---
 
+## 8. Phase 6: API Refinement (Current)
+
+### Design Decisions
+
+#### Message Format Decision
+
+**Chosen approach: JSON dicts for input, typed response objects**
+
+After analyzing industry patterns (OpenAI, Anthropic, Google) and considering UX:
+
+1. **Input messages stay as JSON dicts** - This matches every major AI SDK and requires zero learning curve
+2. **Response is a typed `ChatResponse` object** - Contains metadata (cost, routing, turns)
+3. **ChatResponse has `.message` property** - Returns a dict that can be directly appended to conversation history
+
+```python
+# Building conversation history is simple:
+messages = [{"role": "user", "content": "Hello"}]
+response = await assistant.chat(messages=messages)
+
+# Add response to history (response.message returns a dict)
+messages.append(response.message)
+
+# Continue conversation
+messages.append({"role": "user", "content": "What's my name?"})
+response = await assistant.chat(messages=messages)
+```
+
+**Why not a single unified object for both request and response?**
+- Request messages don't have `cost`, `routing`, `finish_reason`
+- Adding those fields with `None` defaults clutters the interface
+- Type checking becomes weaker (can't distinguish "sending" vs "received")
+- Doesn't match user expectations from other SDKs
+
+**Why not factory methods like `Message.user()`?**
+- Research showed 0 of top 6 AI SDKs use this pattern
+- Adds ceremony without adding value
+- Users already know the dict format
+
+---
+
+### Completed Tasks
+
+#### 1. Rename `Assistants` → `Assistant` (HIGH) ✅
+- Renamed main class from `Assistants` to `Assistant`
+- Added `Assistants` as backward-compatible alias
+- Updated all imports, tests, examples, docs
+
+#### 2. Add simple `chat(content)` API (HIGH) ✅
+- `assistant.chat("Hello")` now works as shorthand
+- Expands to: `chat(messages=[{"role": "user", "content": "Hello"}])`
+
+#### 3. Add `.message` property to ChatResponse (HIGH) ✅
+- Returns `{"role": "assistant", "content": ..., "tool_calls": ...}`
+- Makes conversation history building easy
+
+---
+
+#### 4. Fix AudioService for S3 URLs (MEDIUM) ✅
+- Updated AudioService to handle URL-based responses from API
+- Fetches audio content from S3 URLs automatically
+- Falls back to base64 decoding for backward compatibility
+- Added `size_bytes` and `content_type` fields to GeneratedAudio
+
+#### 5. Implement `mlpal.json` MCP config (MEDIUM) ✅
+- Created `MCPConfig` class for loading mlpal.json files
+- Auto-discover config in current directory and parents
+- Support env var interpolation: `${VAR_NAME}`
+- Support both stdio and HTTP transports
+- Added `MCPBridge.connect_from_config()` convenience method
+
+#### 6. Add `ToolRegistry.merge()` method (LOW) ✅
+- Enhanced `merge()` with `overwrite` and `prefix` options
+- Added `ToolRegistry.merged()` class method for combining registries
+- Handles name conflicts gracefully
+
+#### 7. Fix PyPI URL in docs (LOW) ✅
+- Updated README.md and docs.md with `--index-url https://pypi.mlpal.ai/simple/`
+
+---
+
+### Implementation Order
+
+1. **Phase 6a: Core UX improvements** ✅ COMPLETE
+   - ✅ Rename `Assistants` → `Assistant`
+   - ✅ Add `chat(content)` shorthand
+   - ✅ Add `ChatResponse.message` property
+
+2. **Phase 6b: API fixes** ✅ COMPLETE
+   - ✅ Fix AudioService for S3 URLs
+
+3. **Phase 6c: MCP config** ✅ COMPLETE
+   - ✅ Implement `mlpal.json` discovery
+   - ✅ Add auth support (headers for HTTP, env for stdio)
+   - ✅ Add `ToolRegistry.merge()`
+
+4. **Phase 6d: Polish** ✅ COMPLETE
+   - ✅ Fix PyPI URL
+   - ✅ Documentation review complete
+
+---
+
 ## Dependencies
 
 ```toml
