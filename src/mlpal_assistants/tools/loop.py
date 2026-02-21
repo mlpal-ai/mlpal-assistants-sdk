@@ -213,8 +213,14 @@ class AgentLoop:
         OpenAI requires:
         - additionalProperties: false on all objects
         - All properties must be required
+        - $ref must not have sibling properties (like description)
         """
         result = dict(schema)
+
+        # Handle $ref - OpenAI requires $ref to be standalone without siblings
+        if "$ref" in result:
+            # Keep only $ref, strip all sibling properties (description, title, etc.)
+            return {"$ref": result["$ref"]}
 
         # Handle definitions/$defs
         if "$defs" in result:

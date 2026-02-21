@@ -251,16 +251,25 @@ class ChatService(BaseService):
 
     def _make_strict_schema(self, schema: dict[str, Any]) -> dict[str, Any]:
         """
-        Make schema strict by adding additionalProperties: false recursively.
+        Make schema OpenAI-strict compliant.
 
-        Required for OpenAI structured output compliance.
+        OpenAI requires:
+        - additionalProperties: false on all objects
+        - All properties must be in the required array
+        - $ref must not have sibling properties (like description)
         """
         result = schema.copy()
+
+        # Handle $ref - OpenAI requires $ref to be standalone without siblings
+        if "$ref" in result:
+            # Keep only $ref, strip all sibling properties (description, title, etc.)
+            return {"$ref": result["$ref"]}
 
         if result.get("type") == "object":
             result["additionalProperties"] = False
 
             if "properties" in result:
+                result["required"] = list(result["properties"].keys())
                 result["properties"] = {
                     k: self._make_strict_schema(v)
                     for k, v in result["properties"].items()
