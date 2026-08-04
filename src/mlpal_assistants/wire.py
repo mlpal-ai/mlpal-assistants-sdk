@@ -11,14 +11,20 @@ from __future__ import annotations
 
 from mlpal_assistants._sse import ServerSentEvent
 from mlpal_assistants._wire import (
+    Catalog,
     ContentBlock,
+    DailyUsage,
+    DailyUsageBucket,
+    FeedbackResult,
     KeyUsageSummary,
     ManagedKey,
     ManagedKeyList,
     ManagedKeyWithSecret,
     Message,
     ModelInfo,
+    ModelUsage,
     Usage,
+    UsageSummary,
 )
 
 __all__ = [
@@ -31,4 +37,10 @@ __all__ = [
     "ManagedKeyList",
     "KeyUsageSummary",
     "ModelInfo",
+    "Catalog",
+    "FeedbackResult",
+    "UsageSummary",
+    "ModelUsage",
+    "DailyUsage",
+    "DailyUsageBucket",
 ]

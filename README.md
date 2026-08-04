@@ -58,6 +58,23 @@ key = client.admin.keys.create(
 print(key.secret)  # shown once
 ```
 
+Also on the client:
+
+```python
+# Discover routable models / curated tiers (route a subtask by complexity)
+catalog = client.catalog.retrieve(profile="coding")
+tier = catalog.tiers[catalog.routing_ladder[0]]   # cheapest served tier
+client.models.list()                               # capability advertisement
+
+# Close the curation loop — report how a delegated subtask turned out
+client.feedback.create(model="gpt-5-nano", task_type="coding",
+                       outcome="escalated", escalated_to="claude-opus-5")
+
+# This account's own usage
+client.usage.summary()
+client.usage.daily(days=7)
+```
+
 `AsyncMLPal` mirrors the same surface with `await` and `async with`. See
 [`examples/v2_quickstart.py`](examples/v2_quickstart.py).
 

@@ -20,8 +20,11 @@ or a self-hosted gateway — the surface is identical.
 from __future__ import annotations
 
 from mlpal_assistants._resources.admin import Admin, AsyncAdmin
+from mlpal_assistants._resources.catalog import AsyncCatalogResource, CatalogResource
+from mlpal_assistants._resources.feedback import AsyncFeedback, Feedback
 from mlpal_assistants._resources.messages import AsyncMessages, Messages
 from mlpal_assistants._resources.models import AsyncModels, Models
+from mlpal_assistants._resources.usage import AsyncUsageResource, UsageResource
 from mlpal_assistants._transport import AsyncTransport, SyncTransport
 from mlpal_assistants.config import Config
 
@@ -41,6 +44,9 @@ class MLPal:
         self._transport = SyncTransport(self._config, http_client=http_client)  # type: ignore[arg-type]
         self.messages = Messages(self._transport)
         self.models = Models(self._transport)
+        self.catalog = CatalogResource(self._transport)
+        self.feedback = Feedback(self._transport)
+        self.usage = UsageResource(self._transport)
         self.admin = Admin(self._transport)
 
     @property
@@ -72,6 +78,9 @@ class AsyncMLPal:
         self._transport = AsyncTransport(self._config, http_client=http_client)  # type: ignore[arg-type]
         self.messages = AsyncMessages(self._transport)
         self.models = AsyncModels(self._transport)
+        self.catalog = AsyncCatalogResource(self._transport)
+        self.feedback = AsyncFeedback(self._transport)
+        self.usage = AsyncUsageResource(self._transport)
         self.admin = AsyncAdmin(self._transport)
 
     @property
