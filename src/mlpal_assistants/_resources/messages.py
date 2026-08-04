@@ -1,4 +1,4 @@
-"""`client.messages` — native inference over `/v2/messages` (Anthropic wire).
+"""`client.messages` — native inference over `/v1/messages` (Anthropic wire).
 
 The canonical inference surface. The request is the Anthropic Messages shape;
 core params are explicit for ergonomics and type-checking, while `extra_body`
@@ -19,7 +19,7 @@ from mlpal_assistants._wire import Message
 if TYPE_CHECKING:
     from mlpal_assistants._transport import AsyncTransport, SyncTransport
 
-_PATH = "/v2/messages"
+_PATH = "/v1/messages"
 
 
 def _build_body(

@@ -1,6 +1,6 @@
 """Server-Sent Events decoding for the native (Anthropic-wire) stream.
 
-The gateway streams `/v2/messages` as faithful Anthropic SSE — `event:` +
+The gateway streams `/v1/messages` as faithful Anthropic SSE — `event:` +
 `data:` line pairs separated by blank lines, with `: ping` heartbeat comments
 interleaved during long reasoning/tool phases. This decoder is fed one decoded
 line at a time (from httpx's `iter_lines`/`aiter_lines`, which already strips

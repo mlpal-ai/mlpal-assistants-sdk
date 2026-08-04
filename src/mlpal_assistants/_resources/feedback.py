@@ -1,4 +1,4 @@
-"""`client.feedback` — outcome signal at `/v2/feedback`.
+"""`client.feedback` — outcome signal at `/v1/feedback`.
 
 Report how a delegated subtask turned out. These signals refine the curated
 catalog's quality rankings over time, so a harness that routes by
@@ -15,7 +15,7 @@ from mlpal_assistants._wire import FeedbackResult
 if TYPE_CHECKING:
     from mlpal_assistants._transport import AsyncTransport, SyncTransport
 
-_PATH = "/v2/feedback"
+_PATH = "/v1/feedback"
 
 # Mirrors the gateway's FEEDBACK_OUTCOMES; kept as a Literal for editor hints
 # while the transport still forwards any string (the gateway stays lenient).

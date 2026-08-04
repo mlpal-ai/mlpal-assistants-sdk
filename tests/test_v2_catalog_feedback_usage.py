@@ -38,7 +38,7 @@ _CATALOG = {
 
 @respx.mock
 def test_catalog_retrieve_passes_profile():
-    route = respx.get(f"{BASE}/v2/catalog").mock(return_value=httpx.Response(200, json=_CATALOG))
+    route = respx.get(f"{BASE}/v1/catalog").mock(return_value=httpx.Response(200, json=_CATALOG))
     with _client() as client:
         catalog = client.catalog.retrieve(profile="coding")
 
@@ -52,7 +52,7 @@ def test_catalog_retrieve_passes_profile():
 @pytest.mark.asyncio
 @respx.mock
 async def test_catalog_retrieve_async():
-    respx.get(f"{BASE}/v2/catalog").mock(return_value=httpx.Response(200, json=_CATALOG))
+    respx.get(f"{BASE}/v1/catalog").mock(return_value=httpx.Response(200, json=_CATALOG))
     async with AsyncMLPal(api_key="mlpal_sk_test", base_url=BASE) as client:
         catalog = await client.catalog.retrieve(profile="coding")
     assert catalog.tiers["cheap"]["rel_cost"] == 4
@@ -63,7 +63,7 @@ async def test_catalog_retrieve_async():
 
 @respx.mock
 def test_feedback_create():
-    route = respx.post(f"{BASE}/v2/feedback").mock(
+    route = respx.post(f"{BASE}/v1/feedback").mock(
         return_value=httpx.Response(200, json={"recorded": True})
     )
     with _client() as client:
@@ -89,7 +89,7 @@ def test_feedback_create():
 
 @respx.mock
 def test_feedback_omits_optional_fields():
-    route = respx.post(f"{BASE}/v2/feedback").mock(
+    route = respx.post(f"{BASE}/v1/feedback").mock(
         return_value=httpx.Response(200, json={"recorded": True})
     )
     with _client() as client:

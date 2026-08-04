@@ -1,6 +1,6 @@
 """`client.models` — capability advertisement for the native inference surface.
 
-Lists the models this key can serve on `/v2/messages`, with per-model
+Lists the models this key can serve on `/v1/messages`, with per-model
 capability flags (tools/vision/reasoning/caching). Filtered by the key's model
 policy, so it reflects what the caller can actually route to.
 """
@@ -14,7 +14,7 @@ from mlpal_assistants._wire import ModelInfo
 if TYPE_CHECKING:
     from mlpal_assistants._transport import AsyncTransport, SyncTransport
 
-_PATH = "/v2/messages/models"
+_PATH = "/v1/messages/models"
 
 
 def _parse(data: object) -> list[ModelInfo]:

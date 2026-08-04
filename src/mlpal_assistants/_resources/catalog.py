@@ -1,4 +1,4 @@
-"""`client.catalog` — the curated model view at `/v2/catalog`.
+"""`client.catalog` — the curated model view at `/v1/catalog`.
 
 Returns the tier ladder for a curation profile with live cost and availability.
 Use `catalog.tiers` + `catalog.routing_ladder` to route a subtask by complexity
@@ -14,7 +14,7 @@ from mlpal_assistants._wire import Catalog
 if TYPE_CHECKING:
     from mlpal_assistants._transport import AsyncTransport, SyncTransport
 
-_PATH = "/v2/catalog"
+_PATH = "/v1/catalog"
 
 
 class CatalogResource:

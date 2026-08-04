@@ -45,7 +45,7 @@ def _client() -> MLPal:
 
 @respx.mock
 def test_messages_create_sync():
-    route = respx.post(f"{BASE}/v2/messages").mock(
+    route = respx.post(f"{BASE}/v1/messages").mock(
         return_value=httpx.Response(200, json=_MESSAGE_BODY)
     )
     with _client() as client:
@@ -75,7 +75,7 @@ def test_messages_create_sync():
 
 @respx.mock
 def test_messages_create_forwards_optional_and_extra_body():
-    route = respx.post(f"{BASE}/v2/messages").mock(
+    route = respx.post(f"{BASE}/v1/messages").mock(
         return_value=httpx.Response(200, json=_MESSAGE_BODY)
     )
     with _client() as client:
@@ -103,7 +103,7 @@ def test_messages_create_forwards_optional_and_extra_body():
 @pytest.mark.asyncio
 @respx.mock
 async def test_messages_create_async():
-    respx.post(f"{BASE}/v2/messages").mock(return_value=httpx.Response(200, json=_MESSAGE_BODY))
+    respx.post(f"{BASE}/v1/messages").mock(return_value=httpx.Response(200, json=_MESSAGE_BODY))
     async with AsyncMLPal(api_key="mlpal_sk_test", base_url=BASE) as client:
         msg = await client.messages.create(
             model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
@@ -126,7 +126,7 @@ _SSE = (
 
 @respx.mock
 def test_messages_stream_sync():
-    respx.post(f"{BASE}/v2/messages").mock(
+    respx.post(f"{BASE}/v1/messages").mock(
         return_value=httpx.Response(
             200, headers={"content-type": "text/event-stream"}, content=_SSE
         )
@@ -143,7 +143,7 @@ def test_messages_stream_sync():
 @pytest.mark.asyncio
 @respx.mock
 async def test_messages_stream_async():
-    respx.post(f"{BASE}/v2/messages").mock(
+    respx.post(f"{BASE}/v1/messages").mock(
         return_value=httpx.Response(
             200, headers={"content-type": "text/event-stream"}, content=_SSE
         )
@@ -219,7 +219,7 @@ def test_admin_keys_list_and_delete():
 
 @respx.mock
 def test_models_list():
-    respx.get(f"{BASE}/v2/messages/models").mock(
+    respx.get(f"{BASE}/v1/messages/models").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -257,7 +257,7 @@ def test_models_list():
 )
 @respx.mock
 def test_error_mapping(status, body, exc):
-    respx.post(f"{BASE}/v2/messages").mock(return_value=httpx.Response(status, json=body))
+    respx.post(f"{BASE}/v1/messages").mock(return_value=httpx.Response(status, json=body))
     with _client() as client, pytest.raises(exc) as ei:
         client.messages.create(
             model="mlpal", max_tokens=8, messages=[{"role": "user", "content": "Hi"}]
@@ -268,7 +268,7 @@ def test_error_mapping(status, body, exc):
 
 @respx.mock
 def test_429_budget_text_maps_to_quota_not_ratelimit():
-    respx.post(f"{BASE}/v2/messages").mock(
+    respx.post(f"{BASE}/v1/messages").mock(
         return_value=httpx.Response(429, json={"detail": "monthly budget exceeded for this key"})
     )
     with _client() as client, pytest.raises(QuotaExceededError):
@@ -279,7 +279,7 @@ def test_429_budget_text_maps_to_quota_not_ratelimit():
 
 @respx.mock
 def test_429_rate_limit_sets_retry_after():
-    respx.post(f"{BASE}/v2/messages").mock(
+    respx.post(f"{BASE}/v1/messages").mock(
         return_value=httpx.Response(
             429, headers={"retry-after": "2"}, json={"error": {"message": "slow down"}}
         )
@@ -293,7 +293,7 @@ def test_429_rate_limit_sets_retry_after():
 
 @respx.mock
 def test_retries_then_succeeds_on_502():
-    route = respx.post(f"{BASE}/v2/messages").mock(
+    route = respx.post(f"{BASE}/v1/messages").mock(
         side_effect=[
             httpx.Response(502, json={"error": {"message": "transient"}}),
             httpx.Response(200, json=_MESSAGE_BODY),

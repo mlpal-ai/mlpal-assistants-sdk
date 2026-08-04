@@ -1,4 +1,4 @@
-"""Streaming iterators over the native `/v2/messages` SSE response.
+"""Streaming iterators over the native `/v1/messages` SSE response.
 
 `MessageStream` / `AsyncMessageStream` own the httpx stream context and feed
 its lines through `SSEDecoder`, yielding one `ServerSentEvent` per Anthropic

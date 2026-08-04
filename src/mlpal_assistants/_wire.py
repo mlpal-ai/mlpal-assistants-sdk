@@ -1,6 +1,6 @@
 """Typed models for the v2 native wire and the management surface.
 
-The native inference wire (`/v2/messages`) is the Anthropic Messages shape,
+The native inference wire (`/v1/messages`) is the Anthropic Messages shape,
 passed through faithfully — so these models stay permissive (`extra="allow"`)
 and any new provider/Anthropic field survives on the parsed object rather than
 being dropped. Management models mirror the gateway's `/admin/v1/keys` schemas.
@@ -40,7 +40,7 @@ class ContentBlock(_Wire):
 
 
 class Message(_Wire):
-    """A non-streaming `/v2/messages` response (Anthropic Messages shape)."""
+    """A non-streaming `/v1/messages` response (Anthropic Messages shape)."""
 
     id: str | None = None
     type: str | None = None
@@ -103,7 +103,7 @@ class KeyUsageSummary(_Wire):
     last_used_at: datetime | None = None
 
 
-# ── catalog / capability advertisement (/v2/messages/models) ─────────────────
+# ── catalog / capability advertisement (/v1/messages/models) ─────────────────
 
 
 class ModelInfo(_Wire):
@@ -114,7 +114,7 @@ class ModelInfo(_Wire):
     capabilities: dict[str, Any] = Field(default_factory=dict)
 
 
-# ── curated catalog (/v2/catalog) ────────────────────────────────────────────
+# ── curated catalog (/v1/catalog) ────────────────────────────────────────────
 
 
 class Catalog(_Wire):
@@ -135,7 +135,7 @@ class Catalog(_Wire):
     tiers: dict[str, Any] = Field(default_factory=dict)
 
 
-# ── feedback (/v2/feedback) ──────────────────────────────────────────────────
+# ── feedback (/v1/feedback) ──────────────────────────────────────────────────
 
 
 class FeedbackResult(_Wire):
