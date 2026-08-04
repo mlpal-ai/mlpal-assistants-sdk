@@ -17,6 +17,52 @@ pip install "mlpal-assistants[mcp]" --index-url https://pypi.mlpal.ai/simple/
 
 ## Quick Start
 
+Two clients ship in this package:
+
+- **`MLPal` / `AsyncMLPal`** — the v2 client. One surface for **native inference**
+  (the Anthropic Messages wire) and **management** (keys, model policy, spend
+  budgets). This is what application teams standardize on. Point `base_url` at
+  the managed service (default) or a self-hosted gateway — the surface is identical.
+- **`Assistant`** — the v1 agentic convenience layer (automatic tool loops,
+  structured output, file helpers). Kept for compatibility.
+
+```python
+from mlpal_assistants import MLPal
+
+client = MLPal()  # uses MLPAL_API_KEY (+ optional MLPAL_BASE_URL)
+
+# `mlpal` is a meta-model — the gateway routes it to the best-quality model.
+# Any concrete tag (claude-opus-5, gpt-5.6, gemini-3-pro, a custom adapter)
+# works too; the response always comes back in this Anthropic shape.
+msg = client.messages.create(
+    model="mlpal",
+    max_tokens=512,
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+print(msg.text)
+
+# Streaming
+with client.messages.stream(model="mlpal", max_tokens=512,
+                            messages=[{"role": "user", "content": "Count to five."}]) as stream:
+    for event in stream:
+        if event.type == "content_block_delta":
+            print(event.data["delta"].get("text", ""), end="", flush=True)
+
+# Management — issue a scoped key with a model policy and a monthly budget
+key = client.admin.keys.create(
+    name="team-web",
+    permissions=["messages"],
+    model_policy={"allow": ["claude-*", "mlpal*"], "deny": []},
+    budgets=[{"unit": "usd", "amount": 100, "window": "month"}],
+)
+print(key.secret)  # shown once
+```
+
+`AsyncMLPal` mirrors the same surface with `await` and `async with`. See
+[`examples/v2_quickstart.py`](examples/v2_quickstart.py).
+
+### v1 agentic client
+
 ```python
 import asyncio
 from mlpal_assistants import Assistant
@@ -120,11 +166,11 @@ response = await assistant.embed(["Hello", "World"])
 response = await assistant.generate_image(prompt="A sunset over mountains")
 
 # Text-to-speech
-response = await assistant.generate_speech(text="Hello!", voice="alloy")
+response = await assistant.generate_speech(input="Hello!", voice="alloy")
 response.save("greeting.mp3")
 
 # Transcription
-response = await assistant.transcribe(File.from_path("audio.mp3"))
+response = await assistant.transcribe("audio.mp3")
 print(response.text)
 ```
 
