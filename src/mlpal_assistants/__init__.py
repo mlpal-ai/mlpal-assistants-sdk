@@ -69,6 +69,7 @@ from mlpal_assistants.exceptions import (
     UnsupportedCapabilityError,
     ValidationError,
 )
+from mlpal_assistants._wire import CostBreakdown
 from mlpal_assistants.client import AsyncMLPal, MLPal
 from mlpal_assistants.facade import Assistant
 from mlpal_assistants.models.files import File
@@ -127,6 +128,7 @@ __all__ = [
     # Common types
     "TokenUsage",
     "CostInfo",
+    "CostBreakdown",
     "RoutingInfo",
     "Message",
     # Exceptions

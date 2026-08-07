@@ -41,6 +41,11 @@ msg = client.messages.create(
 )
 print(msg.text)
 
+# Cost: the gateway reports compute units on every non-streaming response.
+# Total = provider pass-through (no markup) + infra meter.
+if msg.cost:
+    print(msg.cost.compute_units, msg.cost.provider_compute_units, msg.cost.infra_compute_units)
+
 # Streaming
 with client.messages.stream(model="mlpal", max_tokens=512,
                             messages=[{"role": "user", "content": "Count to five."}]) as stream:

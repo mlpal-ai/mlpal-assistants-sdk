@@ -305,3 +305,79 @@ def test_retries_then_succeeds_on_502():
         )
     assert msg.text == "Hello there"
     assert route.call_count == 2
+
+
+# ── CU cost headers (X-MLPal-*) ──────────────────────────────────────────────
+
+
+@respx.mock
+def test_messages_cost_from_headers():
+    respx.post(f"{BASE}/v1/messages").mock(
+        return_value=httpx.Response(
+            200,
+            json=_MESSAGE_BODY,
+            headers={
+                "X-MLPal-Compute-Units": "0.42",
+                "X-MLPal-Provider-CU": "0.30",
+                "X-MLPal-Infra-CU": "0.12",
+            },
+        )
+    )
+    with _client() as client:
+        msg = client.messages.create(
+            model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
+        )
+
+    assert msg.cost is not None
+    assert msg.cost.compute_units == pytest.approx(0.42)
+    assert msg.cost.provider_compute_units == pytest.approx(0.30)
+    assert msg.cost.infra_compute_units == pytest.approx(0.12)
+
+
+@respx.mock
+def test_messages_cost_absent_without_headers():
+    """Older gateways (or non-gateway upstreams) send no X-MLPal headers —
+    cost stays None instead of a zero-filled object."""
+    respx.post(f"{BASE}/v1/messages").mock(
+        return_value=httpx.Response(200, json=_MESSAGE_BODY)
+    )
+    with _client() as client:
+        msg = client.messages.create(
+            model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
+        )
+    assert msg.cost is None
+
+
+@respx.mock
+def test_messages_cost_malformed_header_is_dropped():
+    respx.post(f"{BASE}/v1/messages").mock(
+        return_value=httpx.Response(
+            200,
+            json=_MESSAGE_BODY,
+            headers={"X-MLPal-Compute-Units": "not-a-number", "X-MLPal-Provider-CU": "0.30"},
+        )
+    )
+    with _client() as client:
+        msg = client.messages.create(
+            model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
+        )
+    assert msg.cost is not None
+    assert msg.cost.compute_units is None
+    assert msg.cost.provider_compute_units == pytest.approx(0.30)
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_messages_cost_from_headers_async():
+    respx.post(f"{BASE}/v1/messages").mock(
+        return_value=httpx.Response(
+            200, json=_MESSAGE_BODY, headers={"X-MLPal-Compute-Units": "0.007"}
+        )
+    )
+    async with AsyncMLPal(api_key="mlpal_sk_test", base_url=BASE) as client:
+        msg = await client.messages.create(
+            model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
+        )
+    assert msg.cost is not None
+    assert msg.cost.compute_units == pytest.approx(0.007)
+    assert msg.cost.provider_compute_units is None

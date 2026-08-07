@@ -14,12 +14,37 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 from mlpal_assistants._resources._streaming import AsyncMessageStream, MessageStream
-from mlpal_assistants._wire import Message
+from mlpal_assistants._wire import CostBreakdown, Message
 
 if TYPE_CHECKING:
+    import httpx
+
     from mlpal_assistants._transport import AsyncTransport, SyncTransport
 
 _PATH = "/v1/messages"
+
+
+def _cost_from_headers(headers: httpx.Headers) -> CostBreakdown | None:
+    """Parse the gateway's X-MLPal-* CU headers (absent on non-gateway or
+    older deployments — then cost stays None)."""
+
+    def _f(name: str) -> float | None:
+        raw = headers.get(name)
+        if raw is None:
+            return None
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+
+    total = _f("x-mlpal-compute-units")
+    provider = _f("x-mlpal-provider-cu")
+    infra = _f("x-mlpal-infra-cu")
+    if total is None and provider is None and infra is None:
+        return None
+    return CostBreakdown(
+        compute_units=total, provider_compute_units=provider, infra_compute_units=infra
+    )
 
 
 def _build_body(
@@ -93,10 +118,12 @@ class Messages:
             top_p=top_p, top_k=top_k, stop_sequences=stop_sequences, thinking=thinking,
             metadata=metadata, extra_body=extra_body,
         )
-        data, _ = self._transport.request(
+        data, resp_headers = self._transport.request(
             "POST", _PATH, json=body, headers=extra_headers, timeout=timeout
         )
-        return Message.model_validate(data)
+        msg = Message.model_validate(data)
+        msg.cost = _cost_from_headers(resp_headers)
+        return msg
 
     def stream(
         self,
@@ -163,10 +190,12 @@ class AsyncMessages:
             top_p=top_p, top_k=top_k, stop_sequences=stop_sequences, thinking=thinking,
             metadata=metadata, extra_body=extra_body,
         )
-        data, _ = await self._transport.request(
+        data, resp_headers = await self._transport.request(
             "POST", _PATH, json=body, headers=extra_headers, timeout=timeout
         )
-        return Message.model_validate(data)
+        msg = Message.model_validate(data)
+        msg.cost = _cost_from_headers(resp_headers)
+        return msg
 
     def stream(
         self,

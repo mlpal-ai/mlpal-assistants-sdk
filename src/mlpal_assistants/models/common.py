@@ -35,6 +35,10 @@ class CostInfo:
     tokens: TokenUsage
     latency_ms: int
     compute_units: float
+    # CU breakdown: compute_units = provider pass-through + infra meter.
+    # None on gateways that predate the breakdown.
+    provider_compute_units: float | None = None
+    infra_compute_units: float | None = None
 
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> CostInfo:
@@ -51,6 +55,8 @@ class CostInfo:
             tokens=TokenUsage.from_api(tokens_data),
             latency_ms=data.get("latency_ms", 0),
             compute_units=data.get("compute_units", 0.0),
+            provider_compute_units=data.get("provider_compute_units"),
+            infra_compute_units=data.get("infra_compute_units"),
         )
 
 
