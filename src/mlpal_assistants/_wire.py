@@ -39,24 +39,13 @@ class ContentBlock(_Wire):
     text: str | None = None
 
 
-class CostBreakdown(_Wire):
-    """Compute-unit cost the gateway reports on native messages via the
-    `X-MLPal-Compute-Units` / `-Provider-CU` / `-Infra-CU` response headers.
-
-    `compute_units` is the billed total = `provider_compute_units` (model
-    pass-through, no markup) + `infra_compute_units` (gateway infra meter).
-    Fields are None when the gateway didn't send the header."""
-
-    compute_units: float | None = None
-    provider_compute_units: float | None = None
-    infra_compute_units: float | None = None
-
-
 class Message(_Wire):
     """A non-streaming `/v1/messages` response (Anthropic Messages shape).
 
-    `cost` is not part of the wire body — the body stays pure Anthropic. The
-    client fills it from the `X-MLPal-*` response headers after parsing.
+    `compute_units` is not part of the wire body — the body stays pure
+    Anthropic. The client fills it from the `X-MLPal-Compute-Units` response
+    header after parsing: the model's pass-through cost, no markup (the flat
+    tier fee is the gateway's revenue). None against non-gateway upstreams.
     Streaming responses carry no cost (headers precede the stream body)."""
 
     id: str | None = None
@@ -67,7 +56,7 @@ class Message(_Wire):
     stop_reason: str | None = None
     stop_sequence: str | None = None
     usage: Usage | None = None
-    cost: CostBreakdown | None = None
+    compute_units: float | None = None
 
     @property
     def text(self) -> str:

@@ -14,7 +14,7 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 from mlpal_assistants._resources._streaming import AsyncMessageStream, MessageStream
-from mlpal_assistants._wire import CostBreakdown, Message
+from mlpal_assistants._wire import Message
 
 if TYPE_CHECKING:
     import httpx
@@ -24,27 +24,16 @@ if TYPE_CHECKING:
 _PATH = "/v1/messages"
 
 
-def _cost_from_headers(headers: httpx.Headers) -> CostBreakdown | None:
-    """Parse the gateway's X-MLPal-* CU headers (absent on non-gateway or
-    older deployments — then cost stays None)."""
-
-    def _f(name: str) -> float | None:
-        raw = headers.get(name)
-        if raw is None:
-            return None
-        try:
-            return float(raw)
-        except ValueError:
-            return None
-
-    total = _f("x-mlpal-compute-units")
-    provider = _f("x-mlpal-provider-cu")
-    infra = _f("x-mlpal-infra-cu")
-    if total is None and provider is None and infra is None:
+def _cost_from_headers(headers: httpx.Headers) -> float | None:
+    """Parse the gateway's X-MLPal-Compute-Units header (absent on non-gateway
+    or older deployments — then compute_units stays None)."""
+    raw = headers.get("x-mlpal-compute-units")
+    if raw is None:
         return None
-    return CostBreakdown(
-        compute_units=total, provider_compute_units=provider, infra_compute_units=infra
-    )
+    try:
+        return float(raw)
+    except ValueError:
+        return None
 
 
 def _build_body(
@@ -122,7 +111,7 @@ class Messages:
             "POST", _PATH, json=body, headers=extra_headers, timeout=timeout
         )
         msg = Message.model_validate(data)
-        msg.cost = _cost_from_headers(resp_headers)
+        msg.compute_units = _cost_from_headers(resp_headers)
         return msg
 
     def stream(
@@ -194,7 +183,7 @@ class AsyncMessages:
             "POST", _PATH, json=body, headers=extra_headers, timeout=timeout
         )
         msg = Message.model_validate(data)
-        msg.cost = _cost_from_headers(resp_headers)
+        msg.compute_units = _cost_from_headers(resp_headers)
         return msg
 
     def stream(

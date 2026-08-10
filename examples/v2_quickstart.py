@@ -29,9 +29,8 @@ def main() -> None:
         )
         print("assistant:", msg.text)
         print("usage:", msg.usage)
-        if msg.cost:  # CU breakdown from the gateway's X-MLPal-* headers
-            print("cost:", msg.cost.compute_units, "CU",
-                  f"(provider {msg.cost.provider_compute_units} + infra {msg.cost.infra_compute_units})")
+        if msg.compute_units is not None:  # from the X-MLPal-Compute-Units header
+            print("cost:", msg.compute_units, "CU (provider pass-through, no markup)")
 
         # ── streaming ───────────────────────────────────────────────────────
         print("\nstreaming: ", end="", flush=True)
