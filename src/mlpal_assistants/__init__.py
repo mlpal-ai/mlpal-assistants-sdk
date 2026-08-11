@@ -69,6 +69,7 @@ from mlpal_assistants.exceptions import (
     UnsupportedCapabilityError,
     ValidationError,
 )
+from mlpal_assistants.client import AsyncMLPal, MLPal
 from mlpal_assistants.facade import Assistant
 from mlpal_assistants.models.files import File
 from mlpal_assistants.tools import ToolRegistry, ToolResult
@@ -97,7 +98,10 @@ Assistants = Assistant
 __all__ = [
     # Version
     "__version__",
-    # Main client
+    # v2 clients (native inference + management; the go-forward surface)
+    "MLPal",
+    "AsyncMLPal",
+    # v1 facade (agentic convenience layer; kept for compatibility)
     "Assistant",
     "Assistants",  # Backward compatibility alias
     # Files
