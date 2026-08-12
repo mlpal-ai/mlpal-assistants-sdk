@@ -1,18 +1,18 @@
-# MLPal Assistants SDK
+# mlpal-assistants
 
-Official Python SDK for the MLPal Assistants API.
+[![PyPI](https://img.shields.io/pypi/v/mlpal-assistants)](https://pypi.org/project/mlpal-assistants/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
+Python SDK for the MLPal Gateway — the managed service at `models.mlpal.ai` or
+a [self-hosted gateway](https://github.com/mlpalOld/mlpal-gateway). One client
+for inference (Anthropic-wire messages, streaming, tools) and management (keys,
+model policies, spend budgets, usage).
 
 ## Installation
 
 ```bash
-# From MLPal private PyPI
-pip install mlpal-assistants --index-url https://pypi.mlpal.ai/simple/
-
-# Or with uv
-uv add mlpal-assistants --index-url https://pypi.mlpal.ai/simple/
-
-# With MCP support
-pip install "mlpal-assistants[mcp]" --index-url https://pypi.mlpal.ai/simple/
+pip install mlpal-assistants          # or: uv add mlpal-assistants
+pip install "mlpal-assistants[mcp]"   # with MCP support
 ```
 
 ## Quick Start
@@ -31,8 +31,8 @@ from mlpal_assistants import MLPal
 
 client = MLPal()  # uses MLPAL_API_KEY (+ optional MLPAL_BASE_URL)
 
-# `mlpal` is a meta-model — the gateway routes it to the best-quality model.
-# Any concrete tag (claude-opus-5, gpt-5.6, gemini-3-pro, a custom adapter)
+# `mlpal` is a router tag — the gateway resolves it to the best model the
+# deployment serves. Any concrete tag (claude-opus-5, gpt-5.6-terra, ...)
 # works too; the response always comes back in this Anthropic shape.
 msg = client.messages.create(
     model="mlpal",
@@ -221,6 +221,7 @@ Environment variables:
 
 See [docs.md](docs.md) for comprehensive documentation.
 
-## License
+## License and contact
 
-MIT - see [LICENSE](LICENSE)
+Apache-2.0 — see [LICENSE](LICENSE). Questions and issues: **contact@mlpal.ai**
+or [GitHub issues](https://github.com/mlpalOld/mlpal-assistants-sdk/issues).

@@ -10,7 +10,7 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12"
 authors = [
-    { name = "MLPal", email = "engineering@mlpal.ai" }
+    { name = "MLPal", email = "contact@mlpal.ai" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
