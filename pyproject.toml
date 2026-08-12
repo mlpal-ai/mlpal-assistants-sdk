@@ -7,7 +7,7 @@ name = "mlpal-assistants"
 version = "0.2.0"
 description = "Official Python SDK for MLPal Assistants API"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.12"
 authors = [
     { name = "MLPal", email = "engineering@mlpal.ai" }
@@ -15,7 +15,7 @@ authors = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
