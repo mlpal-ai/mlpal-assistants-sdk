@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mlpal-assistants"
-version = "0.2.1"
+version = "0.2.4"
 description = "Official Python SDK for MLPal Assistants API"
 readme = "README.md"
 license = "Apache-2.0"
@@ -44,9 +44,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ML-Pal/mlpal-assistants-sdk"
+Homepage = "https://github.com/mlpal-ai/mlpal-assistants-sdk"
 Documentation = "https://docs.mlpal.ai/sdk"
-Repository = "https://github.com/ML-Pal/mlpal-assistants-sdk"
+Repository = "https://github.com/mlpal-ai/mlpal-assistants-sdk"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mlpal_assistants"]

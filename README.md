@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 Python SDK for the MLPal Gateway — the managed service at `models.mlpal.ai` or
-a [self-hosted gateway](https://github.com/ML-Pal/mlpal-gateway). One client
+a [self-hosted gateway](https://github.com/mlpal-ai/mlpal-gateway). One client
 for inference (Anthropic-wire messages, streaming, tools) and management (keys,
 model policies, spend budgets, usage).
 
@@ -224,4 +224,4 @@ See [docs.md](docs.md) for comprehensive documentation.
 ## License and contact
 
 Apache-2.0 — see [LICENSE](LICENSE). Questions and issues: **contact@mlpal.ai**
-or [GitHub issues](https://github.com/ML-Pal/mlpal-assistants-sdk/issues).
+or [GitHub issues](https://github.com/mlpal-ai/mlpal-assistants-sdk/issues).
