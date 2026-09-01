@@ -192,6 +192,40 @@ class ImageResponse:
 
 
 @dataclass(frozen=True, slots=True)
+class ImageJob:
+    """A background image generation job (submit -> poll)."""
+
+    id: str
+    status: str  # queued | running | succeeded | failed
+    created_at: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    result: ImageResponse | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+
+    @property
+    def done(self) -> bool:
+        return self.status in ("succeeded", "failed")
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> ImageJob:
+        """Create from API response (submit 202 or poll payload)."""
+        err = data.get("error") or {}
+        result = data.get("result")
+        return cls(
+            id=data["id"],
+            status=data["status"],
+            created_at=data.get("created_at"),
+            started_at=data.get("started_at"),
+            finished_at=data.get("finished_at"),
+            result=ImageResponse.from_api(result) if result else None,
+            error_code=err.get("code"),
+            error_message=err.get("message"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class GeneratedAudio:
     """Generated audio data."""
 

@@ -214,3 +214,35 @@ class MCPToolNotFoundError(MCPError):
     ) -> None:
         super().__init__(message, **kwargs)
         self.tool_name = tool_name
+
+
+# ─────────────────────────────────────────────────────────────────
+# Async image jobs (gateway /v1/images/jobs)
+# ─────────────────────────────────────────────────────────────────
+
+
+class ImageJobFailedError(AssistantsError):
+    """A background image job finished with status=failed.
+
+    ``code`` is the gateway's machine code: "provider_error" (upstream
+    failed), "worker_lost" (pod restarted mid-render; nothing was billed,
+    safe to resubmit), or "invalid_request".
+    """
+
+    def __init__(self, message: str, *, code: str, job_id: str, **kwargs: Any) -> None:
+        super().__init__(message, **kwargs)
+        self.code = code
+        self.job_id = job_id
+
+
+class ImageJobTimeoutError(TimeoutError, AssistantsError):
+    """The client-side deadline elapsed while a job was still running.
+
+    The SERVER-SIDE JOB KEEPS RUNNING and bills normally on completion —
+    keep polling ``get_image_job(job_id)`` to retrieve the result, or
+    surface ``job_id`` to the caller.
+    """
+
+    def __init__(self, message: str, *, job_id: str, **kwargs: Any) -> None:
+        super().__init__(message, **kwargs)
+        self.job_id = job_id

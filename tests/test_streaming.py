@@ -1,6 +1,5 @@
 """Tests for streaming support."""
 
-import pytest
 
 from mlpal_assistants.transport.streaming import (
     ChatStreamDelta,

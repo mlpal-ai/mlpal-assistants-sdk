@@ -47,6 +47,7 @@ Example:
 """
 
 from mlpal_assistants._version import __version__
+from mlpal_assistants.client import AsyncMLPal, MLPal
 from mlpal_assistants.exceptions import (
     AssistantsError,
     AuthenticationError,
@@ -69,7 +70,6 @@ from mlpal_assistants.exceptions import (
     UnsupportedCapabilityError,
     ValidationError,
 )
-from mlpal_assistants.client import AsyncMLPal, MLPal
 from mlpal_assistants.facade import Assistant
 from mlpal_assistants.models.files import File
 from mlpal_assistants.tools import ToolRegistry, ToolResult

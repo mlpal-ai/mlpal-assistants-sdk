@@ -1,10 +1,8 @@
 """Tests for exception classes."""
 
-import pytest
 
 from mlpal_assistants.exceptions import (
     AssistantsError,
-    AuthenticationError,
     MaxTurnsExceededError,
     RateLimitError,
     ToolExecutionError,

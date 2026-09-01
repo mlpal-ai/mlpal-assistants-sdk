@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.0 (2026-09-01)
+
+- `generate_image` now submits a background job and polls internally
+  (gateway async image jobs): long renders (minutes) work with no HTTP
+  connection timeout in the path. Signature unchanged; new optional
+  `deadline: float = 600.0`.
+- New exceptions: `ImageJobFailedError` (carries `.code` and `.job_id`;
+  `worker_lost` means nothing was billed and resubmit is safe) and
+  `ImageJobTimeoutError` (subclass of the SDK `TimeoutError`, carries
+  `.job_id`; the server-side job keeps running).
+- New primitives for custom progress UX: `Assistant.submit_image_job` /
+  `Assistant.get_image_job` (and `ImageService.submit_job` / `get_job`).
+- Automatic idempotency key per submit — a retried submit can never
+  create or bill a second job.
+- Backward compatible with pre-async gateways: a synchronous response is
+  detected and returned directly.
+
 ## [0.1.0] - 2024-02-08
 
 ### Added

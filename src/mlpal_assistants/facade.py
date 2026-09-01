@@ -252,9 +252,10 @@ class Assistant:
         n: int = 1,
         style: str | None = None,
         reference_images: list[dict[str, Any]] | None = None,
+        deadline: float = 600.0,
     ) -> ImageResponse:
         """
-        Generate images from a prompt.
+        Generate images from a prompt (background job + poll internally).
 
         Args:
             model: Image model identifier
@@ -276,7 +277,16 @@ class Assistant:
             n=n,
             style=style,
             reference_images=reference_images,
+            deadline=deadline,
         )
+
+    async def submit_image_job(self, prompt: str, *, model: str = "mlpal", **kwargs: Any):
+        """Submit a background image job without waiting (see ImageService.submit_job)."""
+        return await self._images.submit_job(model, prompt, **kwargs)
+
+    async def get_image_job(self, job_id: str):
+        """Fetch a background image job's state (see ImageService.get_job)."""
+        return await self._images.get_job(job_id)
 
     async def generate_speech(
         self,

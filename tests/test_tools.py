@@ -1,14 +1,13 @@
 """Tests for tool execution module."""
 
 import asyncio
-import json
 
 import pytest
 
 from mlpal_assistants.tools import ToolRegistry, ToolResult
-from mlpal_assistants.tools.schema import generate_tool_schema
 from mlpal_assistants.tools.executor import ToolExecutor
-from mlpal_assistants.types import ToolCall, FunctionCall
+from mlpal_assistants.tools.schema import generate_tool_schema
+from mlpal_assistants.types import FunctionCall, ToolCall
 
 
 class TestToolSchema:
