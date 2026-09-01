@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mlpal-assistants"
-version = "0.3.0"
+version = "0.3.1"
 description = "Official Python SDK for MLPal Assistants API"
 readme = "README.md"
 license = "Apache-2.0"
