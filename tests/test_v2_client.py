@@ -466,6 +466,44 @@ def test_flat_shape_still_parses():
     assert r.content == "ok" and r.routing.resolved_model == "m"
 
 
+def test_stream_delta_carries_cost_from_the_final_chunk():
+    from mlpal_assistants.transport.streaming import ChatStreamDelta
+
+    mid = ChatStreamDelta.from_api(
+        {"choices": [{"delta": {"content": "ok"}, "finish_reason": None}]}
+    )
+    assert mid.content == "ok" and mid.cost is None
+    final = ChatStreamDelta.from_api(
+        {
+            "model": "gpt-6-luna",
+            "choices": [{"delta": {}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 9, "completion_tokens": 1, "total_tokens": 10},
+            "mlpal": {
+                "cost": {
+                    "model_name": "gpt-6-luna",
+                    "provider": "openai",
+                    "compute_units": 0.001,
+                    "tokens": {"input_tokens": 9, "output_tokens": 1, "total_tokens": 10},
+                }
+            },
+        }
+    )
+    assert final.finish_reason == "stop" and final.cost is not None
+    assert final.cost.compute_units == 0.001 and final.cost.tokens.total_tokens == 10
+    plain = ChatStreamDelta.from_api(
+        {
+            "model": "m",
+            "choices": [],
+            "usage": {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5},
+        }
+    )
+    assert (
+        plain.cost is not None
+        and plain.cost.tokens.total_tokens == 5
+        and plain.cost.model_name == "m"
+    )
+
+
 def test_every_request_declares_the_openai_wire():
     from mlpal_assistants._transport import build_headers
     from mlpal_assistants.config import Config

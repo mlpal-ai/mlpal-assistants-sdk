@@ -7,6 +7,8 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from mlpal_assistants.models.common import CostInfo
+
 if TYPE_CHECKING:
     import httpx
 
@@ -125,12 +127,17 @@ class ChatStreamDelta:
     raw: dict[str, Any] | None = None
     """Raw API response data."""
 
+    cost: CostInfo | None = None
+    """Set on the final chunk: CU charged, tokens, the model that ran (the
+    gateway's `mlpal.cost` extra, or `usage` from a plain OpenAI server)."""
+
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> ChatStreamDelta:
         """Parse streaming API response."""
+        cost = _chunk_cost(data)
         choices = data.get("choices", [])
         if not choices:
-            return cls(raw=data)
+            return cls(raw=data, cost=cost)
 
         choice = choices[0]
         delta = choice.get("delta", {})
@@ -147,7 +154,18 @@ class ChatStreamDelta:
             finish_reason=finish_reason,
             tool_calls=tool_calls,
             raw=data,
+            cost=cost,
         )
+
+
+def _chunk_cost(data: dict[str, Any]) -> CostInfo | None:
+    extra_cost = (data.get("mlpal") or {}).get("cost")
+    if extra_cost:
+        return CostInfo.from_api(extra_cost)
+    usage = data.get("usage")
+    if usage:
+        return CostInfo.from_api({"usage": usage, "model": data.get("model", "")})
+    return None
 
 
 @dataclass

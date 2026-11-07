@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shape regardless of its default. Older gateways' flat shape is still parsed.
   `chat.stream()` already read `chat.completion.chunk` events and now receives
   them. No public API change: `ChatResponse` fields are unchanged.
+- `ChatStreamDelta.cost` is set on the final chunk (CU, tokens, model that ran).
 - The retry loop honours `x-should-retry: false` (the gateway's deadline 504:
   the provider call was cancelled, a retry would be another one).
 
