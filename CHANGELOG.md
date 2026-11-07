@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `chat.stream()` already read `chat.completion.chunk` events and now receives
   them. No public API change: `ChatResponse` fields are unchanged.
 - `ChatStreamDelta.cost` is set on the final chunk (CU, tokens, model that ran).
+- Fixes `Assistant.stream_chat()` / `chat.stream()`, which yielded nothing against the
+  gateway in 0.3.x: they posted `stream: true` without saying which shape they spoke and
+  received the flat JSON body, which the chunk parser could not read.
 - The retry loop honours `x-should-retry: false` (the gateway's deadline 504:
   the provider call was cancelled, a retry would be another one).
 
