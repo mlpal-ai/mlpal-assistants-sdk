@@ -7,10 +7,7 @@ on:
   workflow_dispatch:  # Allow manual trigger
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
   PYPI_SERVER_URL: ${{ secrets.PYPI_SERVER_URL }}
-  PYPI_NAMESPACE: ${{ secrets.PYPI_NAMESPACE }}
-  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
 
 jobs:
   build-and-publish:
@@ -42,10 +39,6 @@ jobs:
           VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-          # Normalize package name for wheel filename (replace - with _)
-          WHEEL_NAME=$(echo "${PACKAGE_NAME}" | tr '-' '_')
-          echo "wheel-name=${WHEEL_NAME}" >> $GITHUB_OUTPUT
-
           echo "Package: ${PACKAGE_NAME} v${VERSION}"
 
       - name: Build package
@@ -53,51 +46,51 @@ jobs:
           echo "Building ${{ steps.package-info.outputs.package-name }} v${{ steps.package-info.outputs.version }}..."
           uv build
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Configure kubectl
+      # Releases are immutable: the index refuses overwrites (409) and CI never
+      # deletes a published file. An already-published version fails here with
+      # a clear message instead; bump the version in pyproject.toml to publish.
+      # Anonymous read over HTTP, so this job needs no cluster access.
+      - name: Check version is not already published
         run: |
-          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
-          kubectl version --client
-
-      - name: Check if package version exists and delete if found
-        id: check-version
-        run: |
-          POD_NAME=$(kubectl get pods -n ${{ env.PYPI_NAMESPACE }} -l ${{ secrets.PYPI_POD_LABEL }} -o jsonpath='{.items[0].metadata.name}' 2>&1)
-
-          if [ -z "$POD_NAME" ] || [[ "$POD_NAME" == *"error"* ]]; then
-            echo "Error: Could not find PyPI server pod"
-            exit 1
-          fi
-
-          echo "Found PyPI Pod: ${POD_NAME}"
-
-          WHEEL_FILE="${{ steps.package-info.outputs.wheel-name }}-${{ steps.package-info.outputs.version }}-py3-none-any.whl"
-          echo "Checking for: ${WHEEL_FILE}"
-
-          if kubectl exec -n ${{ env.PYPI_NAMESPACE }} ${POD_NAME} -- ls /data/packages/${WHEEL_FILE} 2>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            kubectl exec -n ${{ env.PYPI_NAMESPACE }} ${POD_NAME} -- rm /data/packages/${WHEEL_FILE}
-            echo "Deleted existing package: ${WHEEL_FILE}"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
+          WHEEL_FILE=$(basename dist/*.whl)
+          INDEX_PAGE="${{ env.PYPI_SERVER_URL }}/simple/${{ steps.package-info.outputs.package-name }}/"
+          STATUS=$(curl -sS -o index.html -w '%{http_code}' "$INDEX_PAGE")
+          case "$STATUS" in
+            200)
+              if grep -qF "$WHEEL_FILE" index.html; then
+                echo "::error::$WHEEL_FILE is already published. Releases are immutable; bump the version in pyproject.toml."
+                exit 1
+              fi
+              ;;
+            # pypiserver redirects names it does not host to its fallback index.
+            303|404) ;;
+            *)
+              echo "::error::Unexpected HTTP $STATUS from $INDEX_PAGE"
+              exit 1
+              ;;
+          esac
+          rm -f index.html
+          echo "$WHEEL_FILE is not on the index yet; publishing"
 
       - name: Install twine
         run: pip install twine
 
       - name: Publish to PyPI server
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_PUBLISH_USER }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PUBLISH_PASSWORD }}
         run: |
+          : "${TWINE_USERNAME:?PYPI_PUBLISH_USER secret is not available to this repo}"
+          : "${TWINE_PASSWORD:?PYPI_PUBLISH_PASSWORD secret is not available to this repo}"
+          # Basic auth must not cross the network in clear text.
+          case "${{ env.PYPI_SERVER_URL }}" in
+            https://*) ;;
+            *) echo "::error::PYPI_SERVER_URL must be an https:// URL"; exit 1 ;;
+          esac
+          echo "Publishing ${{ steps.package-info.outputs.package-name }} v${{ steps.package-info.outputs.version }} to ${{ env.PYPI_SERVER_URL }}..."
           twine upload \
-            --repository-url ${{ env.PYPI_SERVER_URL }} \
+            --repository-url "${{ env.PYPI_SERVER_URL }}" \
             --non-interactive \
-            --username dummy \
-            --password dummy \
             dist/*.whl
 
       - name: Verify publication
