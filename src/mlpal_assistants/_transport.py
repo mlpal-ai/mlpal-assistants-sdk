@@ -52,6 +52,10 @@ def build_headers(config: Config, extra: Mapping[str, str] | None) -> dict[str, 
         "Accept": "application/json",
         "User-Agent": _user_agent(),
         "anthropic-version": DEFAULT_ANTHROPIC_VERSION,
+        # One base URL, two shapes on /v1/chat/completions and /v1/models: this
+        # SDK speaks OpenAI's (choices[], chat.completion.chunk) and says so
+        # explicitly, so the gateway's flat-shape default never applies to it.
+        "X-MLPal-Wire": "openai",
     }
     if extra:
         # Caller overrides win (e.g. anthropic-version, anthropic-beta).

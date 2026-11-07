@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from mlpal_assistants._transport import build_headers
 from mlpal_assistants.exceptions import (
     AssistantsError,
     AuthenticationError,
@@ -44,10 +45,7 @@ class HTTPTransport:
         self._config = config
         self._client = httpx.AsyncClient(
             base_url=config.base_url,
-            headers={
-                "Authorization": f"Bearer {config.api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=build_headers(config, None),
             timeout=httpx.Timeout(config.timeout),
         )
 
@@ -161,13 +159,9 @@ class HTTPTransport:
         }
 
         if status == 401:
-            raise AuthenticationError(
-                message or "Invalid API key", **error_kwargs
-            )
+            raise AuthenticationError(message or "Invalid API key", **error_kwargs)
         elif status == 403:
-            raise PermissionDeniedError(
-                message or "Permission denied", **error_kwargs
-            )
+            raise PermissionDeniedError(message or "Permission denied", **error_kwargs)
         elif status == 429:
             retry_after = response.headers.get("Retry-After")
             raise RateLimitError(

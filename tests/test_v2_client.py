@@ -131,9 +131,12 @@ def test_messages_stream_sync():
             200, headers={"content-type": "text/event-stream"}, content=_SSE
         )
     )
-    with _client() as client, client.messages.stream(
-        model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
-    ) as stream:
+    with (
+        _client() as client,
+        client.messages.stream(
+            model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
+        ) as stream,
+    ):
         types = [event.type for event in stream]
 
     # heartbeat dropped; three real events survive, in order
@@ -328,9 +331,7 @@ def test_messages_compute_units_from_header():
 def test_messages_compute_units_absent_without_header():
     """Non-gateway upstreams send no X-MLPal header — compute_units stays None,
     never a fabricated 0."""
-    respx.post(f"{BASE}/v1/messages").mock(
-        return_value=httpx.Response(200, json=_MESSAGE_BODY)
-    )
+    respx.post(f"{BASE}/v1/messages").mock(return_value=httpx.Response(200, json=_MESSAGE_BODY))
     with _client() as client:
         msg = client.messages.create(
             model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
@@ -365,3 +366,103 @@ async def test_messages_compute_units_from_header_async():
             model="mlpal", max_tokens=64, messages=[{"role": "user", "content": "Hi"}]
         )
     assert msg.compute_units == pytest.approx(0.007)
+
+
+# --- 0.4.0: the OpenAI shape with the mlpal extra -----------------------------
+
+
+def test_chat_response_parses_openai_shape_with_mlpal_extra():
+    from mlpal_assistants.models.responses import ChatResponse
+
+    data = {
+        "id": "chatcmpl-trace-1",
+        "object": "chat.completion",
+        "model": "gpt-6-luna",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {"name": "f", "arguments": "{}"},
+                        }
+                    ],
+                },
+                "finish_reason": "tool_calls",
+            }
+        ],
+        "usage": {"prompt_tokens": 9, "completion_tokens": 4, "total_tokens": 13},
+        "mlpal": {
+            "cost": {
+                "model_name": "gpt-6-luna",
+                "provider": "openai",
+                "tokens": {"input_tokens": 9, "output_tokens": 4, "total_tokens": 13},
+                "latency_ms": 7,
+                "compute_units": 0.000123,
+            },
+            "routing": {
+                "requested_model": "mlpal",
+                "resolved_model": "gpt-6-luna",
+                "resolved_provider": "openai",
+            },
+            "data": {"a": 1},
+            "trace_id": "trace-1",
+            "metadata": {"max_output_tokens": {"applied": 16}},
+        },
+    }
+    r = ChatResponse.from_api(data)
+    assert r.content is None and r.finish_reason == "tool_calls"
+    assert r.tool_calls and r.tool_calls[0].id == "call_1"
+    assert r.cost.compute_units == 0.000123 and r.cost.tokens.input_tokens == 9
+    assert r.routing.requested_model == "mlpal" and r.routing.resolved_model == "gpt-6-luna"
+    assert r.metadata["trace_id"] == "trace-1" and r.metadata["max_output_tokens"]["applied"] == 16
+
+
+def test_chat_response_openai_shape_without_extra_uses_usage():
+    from mlpal_assistants.models.responses import ChatResponse
+
+    data = {
+        "model": "gpt-6-luna",
+        "choices": [
+            {"index": 0, "message": {"role": "assistant", "content": "hi"}, "finish_reason": "stop"}
+        ],
+        "usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_tokens": 4},
+    }
+    r = ChatResponse.from_api(data)
+    assert (
+        r.content == "hi" and r.cost.tokens.total_tokens == 4 and r.cost.model_name == "gpt-6-luna"
+    )
+
+
+def test_flat_shape_still_parses():
+    from mlpal_assistants.models.responses import ChatResponse
+
+    r = ChatResponse.from_api(
+        {"content": "ok", "finish_reason": "stop", "cost": {"model_name": "m", "provider": "p"}}
+    )
+    assert r.content == "ok" and r.routing.resolved_model == "m"
+
+
+def test_every_request_declares_the_openai_wire():
+    from mlpal_assistants._transport import build_headers
+    from mlpal_assistants.config import Config
+
+    headers = build_headers(Config(api_key="mlpal_sk_test"), None)
+    assert headers["X-MLPal-Wire"] == "openai"
+    assert headers["User-Agent"].startswith("mlpal-assistants-python/0.4")
+
+
+def test_chat_transport_declares_the_openai_wire_too():
+    """The chat facade (Assistant.chat / stream_chat) posts /v1/chat/completions
+    through its own transport; that one must say which shape it speaks."""
+    from mlpal_assistants.config import Config
+    from mlpal_assistants.transport import HTTPTransport
+
+    client = HTTPTransport(Config(api_key="mlpal_sk_test"))._client
+    assert client.headers["x-mlpal-wire"] == "openai"
+    assert client.headers["user-agent"].startswith("mlpal-assistants-python/0.4")
+    assert client.headers["authorization"] == "Bearer mlpal_sk_test"

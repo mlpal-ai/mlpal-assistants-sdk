@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0 (2026-11-07)
+
+- One base URL, one shape: `chat.complete()` and the tool loop now read
+  OpenAI's `chat.completion` response (`choices[]`, `usage`) with the
+  gateway's `mlpal` extra (cost, routing, parsed data, metadata, trace id),
+  and every request carries `X-MLPal-Wire: openai` so the gateway serves that
+  shape regardless of its default. Older gateways' flat shape is still parsed.
+  `chat.stream()` already read `chat.completion.chunk` events and now receives
+  them. No public API change: `ChatResponse` fields are unchanged.
+
 ## 0.3.1 (2026-09-01)
 
 - Re-export ImageJobFailedError / ImageJobTimeoutError from the package

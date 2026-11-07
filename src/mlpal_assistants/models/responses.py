@@ -20,6 +20,40 @@ class Turn:
     tool_results: tuple[dict[str, Any], ...] | None = None
 
 
+def _flatten_openai(data: dict[str, Any]) -> dict[str, Any]:
+    """OpenAI `chat.completion` → the flat dict the dataclasses read. The
+    `mlpal` extra is the gateway's own information (cost, routing, parsed
+    structured output, metadata, trace id); `usage` backs `cost.tokens` when
+    the extra is absent (a plain OpenAI-compatible server)."""
+    choices = data.get("choices") or []
+    message = (choices[0].get("message") or {}) if choices else {}
+    extra = data.get("mlpal") or {}
+    usage = data.get("usage") or {}
+    cost = dict(extra.get("cost") or {})
+    if "tokens" not in cost and usage:
+        cost["tokens"] = {
+            "input_tokens": usage.get("prompt_tokens", 0),
+            "output_tokens": usage.get("completion_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+            "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0),
+            "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens"),
+        }
+    cost.setdefault("model_name", data.get("model", ""))
+    return {
+        "content": message.get("content"),
+        "role": message.get("role", "assistant"),
+        "tool_calls": message.get("tool_calls"),
+        "finish_reason": (choices[0].get("finish_reason") if choices else None) or "stop",
+        "cost": cost,
+        "routing": extra.get("routing") or {},
+        "data": extra.get("data"),
+        "metadata": {
+            **(extra.get("metadata") or {}),
+            **({"trace_id": extra["trace_id"]} if extra.get("trace_id") else {}),
+        },
+    }
+
+
 @dataclass(slots=True)
 class ChatResponse:
     """
@@ -96,7 +130,12 @@ class ChatResponse:
         parsed_data: Any = None,
         turns: list[Turn] | None = None,
     ) -> ChatResponse:
-        """Create from API response."""
+        """Create from an API response in either shape: OpenAI's
+        `chat.completion` (what the gateway sends this SDK, with the `mlpal`
+        extra carrying cost, routing, parsed data and metadata) or the
+        gateway's flat shape (older gateways)."""
+        if "choices" in data:
+            data = _flatten_openai(data)
         tool_calls = None
         if raw_calls := data.get("tool_calls"):
             tool_calls = tuple(ToolCall.from_api(tc) for tc in raw_calls)

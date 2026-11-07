@@ -159,15 +159,17 @@ class ChatService(BaseService):
         # Make request
         data = await self._transport.post("/v1/chat/completions", body=body)
 
+        response = ChatResponse.from_api(data)
         # Parse structured output if requested
         parsed_data = None
-        if pydantic_model is not None and data.get("content"):
+        if pydantic_model is not None and response.content:
             try:
-                parsed_data = pydantic_model.model_validate_json(data["content"])
+                parsed_data = pydantic_model.model_validate_json(response.content)
             except Exception:
                 pass
-
-        return ChatResponse.from_api(data, parsed_data=parsed_data)
+        if parsed_data is not None:
+            response = ChatResponse.from_api(data, parsed_data=parsed_data)
+        return response
 
     async def _complete_with_tools(
         self,
