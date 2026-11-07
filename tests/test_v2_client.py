@@ -310,6 +310,25 @@ def test_retries_then_succeeds_on_502():
     assert route.call_count == 2
 
 
+@respx.mock
+def test_x_should_retry_false_stops_the_retry_loop():
+    """The gateway's deadline 504 cancelled the provider call; a retry is
+    another one. The header makes one attempt the whole story."""
+    route = respx.post(f"{BASE}/v1/messages").mock(
+        return_value=httpx.Response(
+            504,
+            json={"error": {"message": "deadline", "code": "gateway_timeout"}},
+            headers={"x-should-retry": "false"},
+        )
+    )
+    with _client() as client, pytest.raises(Exception) as e:
+        client.messages.create(
+            model="mlpal", max_tokens=8, messages=[{"role": "user", "content": "Hi"}]
+        )
+    assert route.call_count == 1
+    assert "deadline" in str(e.value)
+
+
 # ── CU cost header (X-MLPal-Compute-Units) ───────────────────────────────────
 
 

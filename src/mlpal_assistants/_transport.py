@@ -145,7 +145,13 @@ class _BaseTransport:
     def __init__(self, config: Config) -> None:
         self._config = config
 
-    def _should_retry(self, attempt: int, max_retries: int, status: int) -> bool:
+    def _should_retry(
+        self, attempt: int, max_retries: int, status: int, headers: Mapping[str, str]
+    ) -> bool:
+        # The gateway marks a response that must not be retried (its deadline
+        # 504: the provider call was cancelled, a retry is another one).
+        if headers.get("x-should-retry", "").lower() == "false":
+            return False
         return attempt < max_retries and status in RETRY_STATUSES
 
 
@@ -186,7 +192,7 @@ class SyncTransport(_BaseTransport):
 
             if resp.status_code < 400:
                 return _decode(resp), resp.headers
-            if self._should_retry(attempt, max_retries, resp.status_code):
+            if self._should_retry(attempt, max_retries, resp.status_code, resp.headers):
                 time.sleep(_backoff(attempt, resp.headers))
                 attempt += 1
                 continue
@@ -256,7 +262,7 @@ class AsyncTransport(_BaseTransport):
 
             if resp.status_code < 400:
                 return _decode(resp), resp.headers
-            if self._should_retry(attempt, max_retries, resp.status_code):
+            if self._should_retry(attempt, max_retries, resp.status_code, resp.headers):
                 await asyncio.sleep(_backoff(attempt, resp.headers))
                 attempt += 1
                 continue
