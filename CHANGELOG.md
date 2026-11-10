@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.1 (unreleased)
+
+- Packaging only, no code change from 0.4.0. The sdist ships `src/`, `README.md`, `LICENSE`
+  and this file instead of the whole git tree. Released by pushing a `v*` tag, which publishes
+  to pypi.org (Trusted Publishing) and mirrors to pypi.mlpal.ai; a push to `main` no longer
+  publishes. 0.4.1 is the first 0.4.x on pypi.org.
+
 ## 0.4.0 (2026-11-07)
 
 - One base URL, one shape: `chat.complete()` and the tool loop now read

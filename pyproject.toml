@@ -4,10 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mlpal-assistants"
-version = "0.4.0"
+version = "0.4.1"
 description = "Official Python SDK for MLPal Assistants API"
 readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 authors = [
     { name = "MLPal", email = "contact@mlpal.ai" }
@@ -50,6 +51,11 @@ Repository = "https://github.com/mlpal-ai/mlpal-assistants-sdk"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mlpal_assistants"]
+
+# Hatchling's default sdist is the whole git tree (.claude/, plans, test fixtures, scripts).
+# Ship the package source and the files its metadata points at, nothing else.
+[tool.hatch.build.targets.sdist]
+only-include = ["src/mlpal_assistants", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [tool.ruff]
 target-version = "py312"
