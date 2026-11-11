@@ -1,0 +1,196 @@
+# Release: pushing a `v*` tag publishes this package to pypi.org through Trusted Publishing
+# (OIDC, no stored token) and uploads the same files to the pypi.mlpal.ai mirror.
+# A push to main publishes nothing.
+#
+# To release: bump `version` in pyproject.toml on main, then
+#   git tag v<version> <commit on main> && git push origin v<version>
+# The tag must equal the pyproject version and point at a commit on main.
+#
+# pypi.org Trusted Publisher for this workflow (one-time, set up by the founder):
+#   project mlpal-assistants · owner mlpal-ai · repository mlpal-assistants-sdk · workflow release.yml · environment pypi
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  DIST_NAME: mlpal-assistants
+  MIRROR_INDEX: https://pypi.mlpal.ai/simple/
+  UV_PYTHON: "3.12"  # tests, build and smoke installs all run on the oldest supported Python
+
+jobs:
+  build:
+    name: Test and build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0  # the main-ancestry check needs origin/main
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
+        with:
+          enable-cache: false  # a release build never restores a cache another run wrote
+
+      - name: Check the tag matches pyproject and points at main
+        id: tag
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the pyproject version $version"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME points at $GITHUB_SHA, which is not on main"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: |
+          uv sync --all-extras
+          uv run python -m pytest tests/ -q
+
+      - name: Build
+        run: uv build --no-sources
+
+      - name: Check the distributions
+        run: |
+          uvx twine@7.0.0 check --strict dist/*
+          # Every dependency must resolve from a public index; a direct URL would not.
+          if unzip -p dist/*.whl '*.dist-info/METADATA' | grep -E '^Requires-Dist: .*@ *(https?|file|git)'; then
+            echo "::error::The wheel declares a direct-URL dependency"
+            exit 1
+          fi
+          # Guard against the sdist regressing to the whole repo tree.
+          if { unzip -Z1 dist/*.whl; tar -tzf dist/*.tar.gz; } \
+              | grep -E '(^|/)(\.env($|\.)|\.claude/|\.github/)|\.(pem|key|p12)$|(^|/)id_(rsa|ed25519)'; then
+            echo "::error::The distributions contain files that must not ship"
+            exit 1
+          fi
+
+      - name: Install the wheel the way consumers do today (mirror first, then pypi.org)
+        working-directory: ${{ runner.temp }}
+        env:
+          UV_NO_CONFIG: "1"
+          VENV: ${{ runner.temp }}/smoke
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          uv venv "$VENV"
+          uv pip install --python "$VENV/bin/python" \
+            --index "$MIRROR_INDEX" --default-index https://pypi.org/simple/ \
+            "$GITHUB_WORKSPACE"/dist/*.whl
+          "$VENV/bin/python" -c "import mlpal_assistants; assert mlpal_assistants.__version__ == '$VERSION', mlpal_assistants.__version__"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  pypi-installable:
+    # Runs the package and its dependencies, so it holds no permissions and no OIDC token.
+    name: Check it installs from pypi.org alone
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
+        with:
+          enable-cache: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      - name: Install the wheel with pypi.org as the only index
+        working-directory: ${{ runner.temp }}
+        env:
+          UV_NO_CONFIG: "1"
+          VENV: ${{ runner.temp }}/smoke
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          uv venv "$VENV"
+          uv pip install --python "$VENV/bin/python" \
+            --default-index https://pypi.org/simple/ \
+            "$GITHUB_WORKSPACE"/dist/*.whl
+          "$VENV/bin/python" -c "import mlpal_assistants; assert mlpal_assistants.__version__ == '$VERSION', mlpal_assistants.__version__"
+
+  pypi:
+    name: Publish to pypi.org
+    needs: [build, pypi-installable]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/mlpal-assistants/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write  # Trusted Publishing; nothing else runs in this job
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3
+
+  mirror:
+    # Independent of the pypi.org jobs so the mirror's consumers are never blocked on them.
+    name: Mirror to pypi.mlpal.ai
+    needs: build
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      PYPI_SERVER_URL: ${{ secrets.PYPI_SERVER_URL }}
+    steps:
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
+        with:
+          enable-cache: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      # Releases are immutable: the mirror refuses overwrites (409) and CI never deletes a file.
+      - name: Refuse a version the mirror already has
+        run: |
+          case "$PYPI_SERVER_URL" in
+            https://*) ;;
+            *) echo "::error::PYPI_SERVER_URL must be an https:// URL"; exit 1 ;;
+          esac
+          page=$(mktemp)
+          status=$(curl -sS -o "$page" -w '%{http_code}' "$PYPI_SERVER_URL/simple/$DIST_NAME/")
+          case "$status" in
+            200)
+              for f in dist/*; do
+                if grep -qF "$(basename "$f")" "$page"; then
+                  echo "::error::$(basename "$f") is already on the mirror; bump the version in pyproject.toml"
+                  exit 1
+                fi
+              done
+              ;;
+            303|404) ;;  # pypiserver redirects names it does not host to its fallback index
+            *) echo "::error::Unexpected HTTP $status from the mirror"; exit 1 ;;
+          esac
+
+      - name: Upload to the mirror
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_PUBLISH_USER }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PUBLISH_PASSWORD }}
+        run: |
+          : "${TWINE_USERNAME:?PYPI_PUBLISH_USER secret is not available to this repo}"
+          : "${TWINE_PASSWORD:?PYPI_PUBLISH_PASSWORD secret is not available to this repo}"
+          uvx twine@7.0.0 upload --repository-url "$PYPI_SERVER_URL" --non-interactive dist/*
